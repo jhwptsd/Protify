@@ -1,0 +1,47 @@
+data_Adenine
+#
+loop_
+_atom_site.group_PDB 
+_atom_site.id 
+_atom_site.type_symbol 
+_atom_site.label_atom_id 
+_atom_site.label_alt_id 
+_atom_site.label_comp_id 
+_atom_site.label_asym_id 
+_atom_site.label_entity_id 
+_atom_site.label_seq_id 
+_atom_site.pdbx_PDB_ins_code 
+_atom_site.Cartn_x 
+_atom_site.Cartn_y 
+_atom_site.Cartn_z 
+_atom_site.occupancy 
+_atom_site.B_iso_or_equiv 
+_atom_site.pdbx_formal_charge 
+_atom_site.auth_seq_id 
+_atom_site.auth_comp_id 
+_atom_site.auth_asym_id 
+_atom_site.auth_atom_id 
+_atom_site.pdbx_PDB_model_num 
+
+ATOM   138  P  P     . A   A 1 7   ? 35.384 64.184 49.092 1.00 143.69 ? 7   A   A P     1 
+ATOM   139  O  OP1   . A   A 1 7   ? 34.752 62.966 49.665 1.00 138.40 ? 7   A   A OP1   1 
+ATOM   140  O  OP2   . A   A 1 7   ? 36.706 64.057 48.407 1.00 125.15 ? 7   A   A OP2   1 
+ATOM   141  O  "O5'" . A   A 1 7   ? 34.347 64.939 48.145 1.00 121.95 ? 7   A   A "O5'" 1 
+ATOM   142  C  "C5'" . A   A 1 7   ? 33.087 65.363 48.645 1.00 118.59 ? 7   A   A "C5'" 1 
+ATOM   143  C  "C4'" . A   A 1 7   ? 32.358 66.213 47.642 1.00 116.19 ? 7   A   A "C4'" 1 
+ATOM   144  O  "O4'" . A   A 1 7   ? 33.080 67.455 47.436 1.00 117.80 ? 7   A   A "O4'" 1 
+ATOM   145  C  "C3'" . A   A 1 7   ? 32.243 65.631 46.243 1.00 118.66 ? 7   A   A "C3'" 1 
+ATOM   146  O  "O3'" . A   A 1 7   ? 31.217 64.664 46.113 1.00 125.36 ? 7   A   A "O3'" 1 
+ATOM   147  C  "C2'" . A   A 1 7   ? 32.033 66.873 45.393 1.00 110.52 ? 7   A   A "C2'" 1 
+ATOM   148  O  "O2'" . A   A 1 7   ? 30.710 67.367 45.550 1.00 109.51 ? 7   A   A "O2'" 1 
+ATOM   149  C  "C1'" . A   A 1 7   ? 32.991 67.839 46.075 1.00 111.71 ? 7   A   A "C1'" 1 
+ATOM   150  N  N9    . A   A 1 7   ? 34.341 67.774 45.485 1.00 107.45 ? 7   A   A N9    1 
+ATOM   151  C  C8    . A   A 1 7   ? 35.470 67.228 46.053 1.00 109.87 ? 7   A   A C8    1 
+ATOM   152  N  N7    . A   A 1 7   ? 36.543 67.318 45.299 1.00 101.75 ? 7   A   A N7    1 
+ATOM   153  C  C5    . A   A 1 7   ? 36.085 67.962 44.154 1.00 98.12  ? 7   A   A C5    1 
+ATOM   154  C  C6    . A   A 1 7   ? 36.737 68.354 42.968 1.00 91.17  ? 7   A   A C6    1 
+ATOM   155  N  N6    . A   A 1 7   ? 38.035 68.145 42.745 1.00 83.45  ? 7   A   A N6    1 
+ATOM   156  N  N1    . A   A 1 7   ? 35.997 68.978 42.015 1.00 92.99  ? 7   A   A N1    1 
+ATOM   157  C  C2    . A   A 1 7   ? 34.687 69.189 42.257 1.00 98.58  ? 7   A   A C2    1 
+ATOM   158  N  N3    . A   A 1 7   ? 33.957 68.862 43.330 1.00 99.11  ? 7   A   A N3    1 
+ATOM   159  C  C4    . A   A 1 7   ? 34.726 68.247 44.252 1.00 102.06 ? 7   A   A C4    1

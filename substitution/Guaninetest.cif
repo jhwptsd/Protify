@@ -1,0 +1,47 @@
+data_Guanine
+#
+loop_
+_atom_site.group_PDB 
+_atom_site.id 
+_atom_site.type_symbol 
+_atom_site.label_atom_id 
+_atom_site.label_alt_id 
+_atom_site.label_comp_id 
+_atom_site.label_asym_id 
+_atom_site.label_entity_id 
+_atom_site.label_seq_id 
+_atom_site.pdbx_PDB_ins_code 
+_atom_site.Cartn_x 
+_atom_site.Cartn_y 
+_atom_site.Cartn_z 
+_atom_site.occupancy 
+_atom_site.B_iso_or_equiv 
+_atom_site.pdbx_formal_charge 
+_atom_site.auth_seq_id 
+_atom_site.auth_comp_id 
+_atom_site.auth_asym_id 
+_atom_site.auth_atom_id 
+_atom_site.pdbx_PDB_model_num
+ATOM   1   P  P     . G   A 1 1   ? 50.001 77.254 40.137 1.00 162.09 ? 1   G   A P     1 
+ATOM   2   O  OP1   . G   A 1 1   ? 50.150 76.113 39.198 1.00 158.31 ? 1   G   A OP1   1 
+ATOM   3   O  OP2   . G   A 1 1   ? 48.878 77.258 41.113 1.00 160.28 ? 1   G   A OP2   1 
+ATOM   4   O  "O5'" . G   A 1 1   ? 51.384 77.570 40.867 1.00 156.12 ? 1   G   A "O5'" 1 
+ATOM   5   C  "C5'" . G   A 1 1   ? 51.979 76.620 41.738 1.00 155.27 ? 1   G   A "C5'" 1 
+ATOM   6   C  "C4'" . G   A 1 1   ? 52.646 77.286 42.915 1.00 155.22 ? 1   G   A "C4'" 1 
+ATOM   7   O  "O4'" . G   A 1 1   ? 51.874 78.441 43.324 1.00 151.60 ? 1   G   A "O4'" 1 
+ATOM   8   C  "C3'" . G   A 1 1   ? 52.760 76.443 44.177 1.00 157.71 ? 1   G   A "C3'" 1 
+ATOM   9   O  "O3'" . G   A 1 1   ? 53.875 75.563 44.155 1.00 161.82 ? 1   G   A "O3'" 1 
+ATOM   10   C  "C2'" . G   A 1 1   ? 52.827 77.486 45.289 1.00 153.28 ? 1   G   A "C2'" 1 
+ATOM   11   O  "O2'" . G   A 1 1   ? 54.150 77.978 45.436 1.00 144.79 ? 1   G   A "O2'" 1 
+ATOM   12   C  "C1'" . G   A 1 1   ? 51.955 78.609 44.724 1.00 152.67 ? 1   G   A "C1'" 1 
+ATOM   13   N  N9    . G   A 1 1   ? 50.583 78.614 45.280 1.00 153.73 ? 1   G   A N9    1 
+ATOM   14   C  C8    . G   A 1 1   ? 49.432 78.521 44.533 1.00 154.26 ? 1   G   A C8    1 
+ATOM   15   N  N7    . G   A 1 1   ? 48.338 78.580 45.239 1.00 149.80 ? 1   G   A N7    1 
+ATOM   16   C  C5    . G   A 1 1   ? 48.788 78.737 46.540 1.00 149.19 ? 1   G   A C5    1 
+ATOM   17   C  C6    . G   A 1 1   ? 48.039 78.864 47.738 1.00 149.53 ? 1   G   A C6    1 
+ATOM   18   O  O6    . G   A 1 1   ? 46.809 78.852 47.887 1.00 147.80 ? 1   G   A O6    1 
+ATOM   19   N  N1    . G   A 1 1   ? 48.877 78.997 48.839 1.00 150.93 ? 1   G   A N1    1 
+ATOM   20   C  C2    . G   A 1 1   ? 50.249 79.015 48.790 1.00 149.76 ? 1   G   A C2    1 
+ATOM   21   N  N2    . G   A 1 1   ? 50.858 79.158 49.975 1.00 151.75 ? 1   G   A N2    1 
+ATOM   22   N  N3    . G   A 1 1   ? 50.961 78.904 47.676 1.00 147.02 ? 1   G   A N3    1 
+ATOM   23   C  C4    . G   A 1 1   ? 50.170 78.769 46.590 1.00 148.92 ? 1   G   A C4    1 
