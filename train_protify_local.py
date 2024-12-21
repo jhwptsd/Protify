@@ -1,13 +1,9 @@
 #@title Install dependencies
 import os
-from google.colab import files
 import re
 import hashlib
 import random
-import torch
-import torch.nn as nn
 import math
-import numpy as np
 import json
 
 import sys
@@ -21,13 +17,6 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 from Bio import BiopythonDeprecationWarning
 warnings.simplefilter(action='ignore', category=BiopythonDeprecationWarning)
-from pathlib import Path
-from colabfold.download import download_alphafold_params, default_data_dir
-from colabfold.utils import setup_logging
-from colabfold.batch import get_queries, run, set_model_type
-from colabfold.plot import plot_msa_v2
-from tqdm import tqdm
-import shutil
 
 USE_AMBER = True
 USE_TEMPLATES = False
@@ -81,6 +70,19 @@ if not os.path.exists("rna3db-mmcifs"):
   os.system('rm rna3db-jsons.tar.gz')
 seq_path = "/rna3db-jsons/cluster.json"
 struct_path = "/rna3db-mmcifs/"
+
+from colabfold.download import download_alphafold_params, default_data_dir
+from colabfold.utils import setup_logging
+from colabfold.batch import get_queries, run, set_model_type
+from colabfold.plot import plot_msa_v2
+import numpy as np
+import torch
+import torch.nn as nn
+from pathlib import Path
+
+from tqdm import tqdm
+import shutil
+
 
 def add_hash(x,y):
   return x+"_"+hashlib.sha1(y.encode()).hexdigest()[:5]
@@ -289,36 +291,6 @@ if max_msa == "auto": max_msa = None
 msa_mode = "single_sequence" #@param ["mmseqs2_uniref_env", "mmseqs2_uniref","single_sequence","custom"]
 pair_mode = "unpaired_paired" #@param ["unpaired_paired","paired","unpaired"] {type:"string"}
 #@markdown - "unpaired_paired" = pair sequences from same species + unpaired MSA, "unpaired" = seperate MSA for each chain, "paired" - only use paired sequences.
-
-def a3ms(jobname):
-    # decide which a3m to use
-    if "mmseqs2" in msa_mode:
-        a3m_file = os.path.join(jobname,f"{jobname}.a3m")
-
-    elif msa_mode == "custom":
-        a3m_file = os.path.join(jobname,f"{jobname}.custom.a3m")
-        if not os.path.isfile(a3m_file):
-            custom_msa_dict = files.upload()
-            custom_msa = list(custom_msa_dict.keys())[0]
-            header = 0
-            import fileinput
-            for line in fileinput.FileInput(custom_msa,inplace=1):
-                if line.startswith(">"):
-                    header = header + 1
-                if not line.rstrip():
-                    continue
-                if line.startswith(">") == False and header == 1:
-                    query_sequence = line.rstrip()
-                print(line, end='')
-
-            os.rename(custom_msa, a3m_file)
-            queries_path=a3m_file
-            print(f"moving {custom_msa} to {a3m_file}")
-
-    else:
-        a3m_file = os.path.join(jobname,f"{jobname}.single_sequence.a3m")
-        with open(a3m_file, "w") as text_file:
-            text_file.write(">1\n%s" % query_sequence)
             
 def RMSD(p1, p2):
     if len(p1)>len(p2):
@@ -527,13 +499,6 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
             if template_mode == "pdb100":
                 use_templates = True
                 custom_template_path = None
-            elif template_mode == "custom":
-                custom_template_path = os.path.join(jobname,f"template")
-                os.makedirs(custom_template_path, exist_ok=True)
-                uploaded = files.upload()
-                use_templates = True
-                for fn in uploaded.keys():
-                    os.rename(fn,os.path.join(custom_template_path,fn))
             else:
                 custom_template_path = None
                 use_templates = False
