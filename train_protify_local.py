@@ -10,6 +10,8 @@ import sys
 from sys import version_info
 python_version = f"{version_info.major}.{version_info.minor}"
 
+
+## MAKE SURE PIP IS INSTALLED
 os.system("pip install biopython")
 from Bio.PDB import *
 
@@ -21,16 +23,6 @@ warnings.simplefilter(action='ignore', category=BiopythonDeprecationWarning)
 USE_AMBER = True
 USE_TEMPLATES = False
 PYTHON_VERSION = python_version
-
-if not os.path.isfile("COLABFOLD_READY"):
-  print("installing colabfold...")
-  os.system("pip install -q --no-warn-conflicts 'colabfold[alphafold-minus-jax] @ git+https://github.com/sokrypton/ColabFold'")
-  if os.environ.get('TPU_NAME', False) != False:
-    os.system("pip uninstall -y jax jaxlib")
-    os.system("pip install --no-warn-conflicts --upgrade dm-haiku==0.0.10 'jax[cuda12_pip]'==0.3.25 -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html")
-  os.system("ln -s /usr/local/lib/python3.*/dist-packages/colabfold colabfold")
-  os.system("ln -s /usr/local/lib/python3.*/dist-packages/alphafold alphafold")
-  os.system("touch COLABFOLD_READY")
 
 if USE_AMBER or USE_TEMPLATES:
   if not os.path.isfile("CONDA_READY"):
