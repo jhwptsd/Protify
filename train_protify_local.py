@@ -582,18 +582,9 @@ try:
 except:
     torch.save(c, f'/ConverterWeights/converter.pt')
     torch.save(corrector, f'/ConverterWeights/corrector.pt')
-    
+
 torch.save(c, f'/ConverterWeights/converter.pt')
 torch.save(corrector, f'/ConverterWeights/corrector.pt')
-# try:
-#   c = torch.load('/content/drive/My Drive/ConverterWeights/converter.pt')
-#   corrector = torch.load('/content/drive/My Drive/ConverterWeights/corrector.pt')
-#   print("Loaded model from checkpoint")
-# except:
-#   c = Converter(max_seq_len=200)
-#   ckpt = torch.load('/content/drive/My Drive/ConverterWeights/converter_params.pt', weights_only=True)
-#   corrector = corrector = torch.load('/content/drive/My Drive/ConverterWeights/corrector.pt')
-#   c.load_state_dict(ckpt['model_state_dict'])
-#   print("Loaded model parameters from checkpoint")
+
 
 
