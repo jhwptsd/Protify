@@ -1,4 +1,3 @@
-#@title Install dependencies
 import os
 import re
 import hashlib
@@ -9,6 +8,9 @@ import json
 import sys
 from sys import version_info
 python_version = f"{version_info.major}.{version_info.minor}"
+
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 ## MAKE SURE PIP IS INSTALLED
@@ -565,6 +567,9 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
         
 seqs, components, macro_tags = load_data(seq_path, 0, 1615, max_len=100)
 c = Converter(max_seq_len=200)
+c = nn.DataParallel(c)
+c.to(device)
+
 corrector = [nn.Parameter(torch.tensor(0, requires_grad=True, dtype=torch.float32))]
 # try:
 #   c = torch.load('/content/drive/My Drive/ConverterWeights/converter.pt')
