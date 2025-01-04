@@ -566,11 +566,25 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
         torch.save(corrector, f'/ConverterWeights/corrector_epoch_{epoch}.pt')
         
 seqs, components, macro_tags = load_data(seq_path, 0, 1615, max_len=100)
-c = Converter(max_seq_len=200)
+
+try:
+   c = torch.load('/ConverterWeights/converter.pt')
+   corrector = torch.load('/ConverterWeights/corrector.pt')
+except:
+   c = Converter(max_seq_len=200)
+   corrector = [nn.Parameter(torch.tensor(6.8, requires_grad=True, dtype=torch.float32))]
+
 c = nn.DataParallel(c)
 c.to(device)
 
-corrector = [nn.Parameter(torch.tensor(0, requires_grad=True, dtype=torch.float32))]
+try:
+   train(seqs, epochs=1, batch_size=4, max_seq_len=100, converter=c, pp_dist=float(corrector[0]))
+except:
+    torch.save(c, f'/ConverterWeights/converter.pt')
+    torch.save(corrector, f'/ConverterWeights/corrector.pt')
+    
+torch.save(c, f'/ConverterWeights/converter.pt')
+torch.save(corrector, f'/ConverterWeights/corrector.pt')
 # try:
 #   c = torch.load('/content/drive/My Drive/ConverterWeights/converter.pt')
 #   corrector = torch.load('/content/drive/My Drive/ConverterWeights/corrector.pt')
@@ -581,8 +595,5 @@ corrector = [nn.Parameter(torch.tensor(0, requires_grad=True, dtype=torch.float3
 #   corrector = corrector = torch.load('/content/drive/My Drive/ConverterWeights/corrector.pt')
 #   c.load_state_dict(ckpt['model_state_dict'])
 #   print("Loaded model parameters from checkpoint")
-train(seqs, epochs=1, batch_size=4, max_seq_len=100, converter=c)#, pp_dist=float(corrector[0]))
 
-torch.save(c, f'/ConverterWeights/converter.pt')
-torch.save(c.state_dict(), f'/ConverterWeights/converter_params.pt')
-torch.save(corrector, f'/ConverterWeights/corrector.pt')
+
