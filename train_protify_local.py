@@ -500,7 +500,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
             lengths = 0
 
             for i in tqdm(range(len(final_seqs))):
-              lengths=lengths+list(final_seqs.values())[i]
+              lengths=lengths+len(list(final_seqs.values())[i])
               with torch.no_grad():
                 queries, _ = get_queries(f'/FASTAs/{list(final_seqs.keys())[i]}.fasta')
                 jobname = add_hash(list(final_seqs.keys())[i], list(final_seqs.values())[i])
