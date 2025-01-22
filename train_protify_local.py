@@ -226,9 +226,9 @@ def encode_rna(seq):
 def write_fastas(seqs):
     # Write a dict of {tag: seq} to as many FASTA files as needed
     for tag, seq in list(seqs.items()):
-        if os.path.exists(f'/FASTAs/{tag}.fasta'):
+        if os.path.exists(f'FASTAs/{tag}.fasta'):
             continue
-        f = open(f"/FASTAs/{tag}.fasta", "w+")
+        f = open(f"FASTAs/{tag}.fasta", "w+")
         f.write(f">{tag}\n{seq}")
         f.close()
 
