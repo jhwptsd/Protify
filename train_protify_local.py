@@ -537,9 +537,9 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
                     user_agent="colabfold/google-colab-main",
                 )
                 path = ""
-                for file in os.listdir(f"/{jobname}"):
+                for file in os.listdir(f"{jobname}"):
                   if file.endswith(".pdb"):
-                    path = os.path.join(f"/{jobname}", file)
+                    path = os.path.join(f"{jobname}", file)
                     break
               temp_loss = (protein_to_rna(path, get_structure(list(final_seqs.keys())[i], struct_path), corrector[0], tm=tm_score))
 
@@ -548,7 +548,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
                 # shutil.copy(get_structure(list(final_seqs.keys())[i], struct_path), "/content/actual.cif")
               with torch.no_grad():
                 loss.append(temp_loss)
-                empty_dir(f"/{jobname}")
+                empty_dir(f"{jobname}")
 
             lengths = lengths/batch_size
 
