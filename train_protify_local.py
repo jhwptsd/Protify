@@ -425,7 +425,7 @@ def prediction_callback(protein_obj, length,
   pass
 
 def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, converter=None, pp_dist=6.8):
-    os.mkdir("/ConverterWeights")
+    os.mkdir("/ConverterWeights", exist_ok=True)
     print("Converter Weights file generated.")
     try:
         K80_chk = os.popen('nvidia-smi | grep "Tesla K80" | wc -l').read()
