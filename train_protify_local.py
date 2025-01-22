@@ -10,9 +10,6 @@ from sys import version_info
 python_version = f"{version_info.major}.{version_info.minor}"
 
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-
 ## MAKE SURE PIP IS INSTALLED
 os.system("pip install biopython")
 from Bio.PDB import *
@@ -77,6 +74,7 @@ from pathlib import Path
 from tqdm import tqdm
 import shutil
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def add_hash(x,y):
   return x+"_"+hashlib.sha1(y.encode()).hexdigest()[:5]
