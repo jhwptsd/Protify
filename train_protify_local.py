@@ -575,13 +575,13 @@ except:
 c = nn.DataParallel(c)
 c.to(device)
 
-try:
-   print("Training...")
-   train(seqs, epochs=100, batch_size=4, max_seq_len=100, converter=c, pp_dist=float(corrector[0]))
-except:
-    print("Error. Exiting training loop")
-    torch.save(c, f'/ConverterWeights/converter.pt')
-    torch.save(corrector, f'/ConverterWeights/corrector.pt')
+#try:
+print("Training...")
+train(seqs, epochs=100, batch_size=4, max_seq_len=100, converter=c, pp_dist=float(corrector[0]))
+# except:
+#     print("Error. Exiting training loop")
+#     torch.save(c, f'/ConverterWeights/converter.pt')
+#     torch.save(corrector, f'/ConverterWeights/corrector.pt')
 
 torch.save(c, f'/ConverterWeights/converter.pt')
 torch.save(corrector, f'/ConverterWeights/corrector.pt')
