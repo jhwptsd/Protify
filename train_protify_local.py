@@ -59,7 +59,7 @@ if not os.path.exists("rna3db-mmcifs"):
   print("Extracting sequence files...")
   os.system('tar -xzf rna3db-jsons.tar.gz')
   os.system('rm rna3db-jsons.tar.gz')
-seq_path = "/rna3db-jsons/cluster.json"
+seq_path = "rna3db-jsons/cluster.json"
 struct_path = "/rna3db-mmcifs/"
 
 from colabfold.download import download_alphafold_params, default_data_dir
