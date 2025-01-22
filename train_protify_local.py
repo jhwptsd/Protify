@@ -225,7 +225,6 @@ def encode_rna(seq):
 
 def write_fastas(seqs):
     # Write a dict of {tag: seq} to as many FASTA files as needed
-    os.makedirs('FASTAs', exist_ok=True)
     for tag, seq in list(seqs.items()):
         if os.path.exists(f'/FASTAs/{tag}.fasta'):
             continue
@@ -426,6 +425,7 @@ def prediction_callback(protein_obj, length,
 
 def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, converter=None, pp_dist=6.8):
     os.makedirs("/ConverterWeights", exist_ok=True)
+    os.makedirs('FASTAs', exist_ok=True)
     print("Converter Weights file generated.")
     try:
         K80_chk = os.popen('nvidia-smi | grep "Tesla K80" | wc -l').read()
