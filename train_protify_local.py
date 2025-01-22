@@ -576,7 +576,7 @@ c = nn.DataParallel(c)
 c.to(device)
 
 try:
-   train(seqs, epochs=1, batch_size=4, max_seq_len=100, converter=c, pp_dist=float(corrector[0]))
+   train(seqs, epochs=100, batch_size=4, max_seq_len=100, converter=c, pp_dist=float(corrector[0]))
 except:
     torch.save(c, f'/ConverterWeights/converter.pt')
     torch.save(corrector, f'/ConverterWeights/corrector.pt')
