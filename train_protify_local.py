@@ -258,7 +258,7 @@ def get_structure(tag, path):
     component = components[index]
     macro_tag = macro_tags[index]
 
-    path = f"/{path}/train_set/{component}/{macro_tag}/{tag}.cif"
+    path = f"{path}/train_set/{component}/{macro_tag}/{tag}.cif"
     return path
 
 ### Advanced settings
