@@ -566,14 +566,14 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
         torch.save(conv.state_dict(), f'/ConverterWeights/converter_params_epoch_{epoch}.pt')
         torch.save(corrector, f'/ConverterWeights/corrector_epoch_{epoch}.pt')
         
-seqs, components, macro_tags = load_data(seq_path, 0, 1615, max_len=100)
+seqs, components, macro_tags = load_data(seq_path, 0, 1645, max_len=100)
 
 try:
    c = torch.load('/ConverterWeights/converter.pt')
    corrector = torch.load('/ConverterWeights/corrector.pt')
 except:
    c = Converter(max_seq_len=200)
-   corrector = [nn.Parameter(torch.tensor(6.8, requires_grad=True, dtype=torch.float32))]
+   corrector = [nn.Parameter(torch.tensor(6.0, requires_grad=True, dtype=torch.float32))]
 
 c = nn.DataParallel(c)
 c.to(device)
