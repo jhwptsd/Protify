@@ -449,8 +449,8 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
       conv = converter
     conv.train()
     corrector = [nn.Parameter(torch.tensor(pp_dist, requires_grad=True, dtype=torch.float32))] # Can't be bothered to do research, so I'll just regress it
-    optimizer = torch.optim.AdamW(conv.parameters(), lr=1e-2)
-    dist_optimizer = torch.optim.AdamW(corrector, lr=1e-2)
+    optimizer = torch.optim.AdamW(conv.parameters(), lr=1.5e-2)
+    dist_optimizer = torch.optim.AdamW(corrector, lr=1.5e-2)
 
     model_type = set_model_type(False, "auto")
     download_alphafold_params(model_type, Path("."))
