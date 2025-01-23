@@ -527,7 +527,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
                     pairing_strategy=pairing_strategy,
                     stop_at_score=float(100),
                     prediction_callback=prediction_callback,
-                    dpi=200,
+                    dpi=100,
                     zip_results=False,
                     save_all=False,
                     max_msa=max_msa,
@@ -535,6 +535,8 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
                     input_features_callback=input_features_callback,
                     save_recycles=False,
                     user_agent="colabfold/google-colab-main",
+                    use_dropout=True,
+                    use_gpu_relax=True,
                 )
                 path = ""
                 for file in os.listdir(f"{jobname}"):
