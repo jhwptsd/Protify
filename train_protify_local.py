@@ -426,7 +426,7 @@ def prediction_callback(protein_obj, length,
 def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, converter=None, pp_dist=6.8):
     os.makedirs("/ConverterWeights", exist_ok=True)
     os.makedirs('FASTAs', exist_ok=True)
-    print("Converter Weights file generated.")
+    print("Converter Weights folder generated.")
     try:
         K80_chk = os.popen('nvidia-smi | grep "Tesla K80" | wc -l').read()
     except:
@@ -464,7 +464,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
             tags = [s[0] for s in batch]
 
             # Preprocessing sequences
-            processed_seqs = [torch.tensor(np.transpose(np.array(encode_rna(s[1]))), requires_grad=False, dtype=torch.float32) for s in batch] # (batch, seq, base)
+            processed_seqs = [torch.tensor(np.transpose(np.array(encode_rna(s[1])), (0,1)), requires_grad=False, dtype=torch.float32) for s in batch] # (batch, seq, base)
 
             # Send sequences through the converter
             aa_seqs = [conv(s) for s in processed_seqs][0] # (seq, batch, aa)
