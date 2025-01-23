@@ -85,7 +85,7 @@ class Converter(nn.Module):
 
         self.d_model = d_model
 
-        self.input_embedding = nn.Linear(1, d_model)
+        self.input_embedding = nn.Linear(4, d_model)
 
         self.pos_encoder = PositionalEncoding(d_model, dropout, max_len=max_seq_len)
 
@@ -99,7 +99,7 @@ class Converter(nn.Module):
 
 
     def forward(self, x, src_key_padding_mask=None):
-        # x shape: (seq_len, batch_size, 1)
+        # x shape: (seq_len, batch_size, 4)
 
         x = self.input_embedding(x)  # Now: (seq_len, batch_size, d_model)
 
@@ -214,13 +214,13 @@ def encode_rna(seq):
     out = []
     for i in seq:
         if i=="A":
-            out.append([0])
+            out.append([1,0,0,0])
         elif i=="U":
-            out.append([1])
+            out.append([0,1,0,0])
         elif i=="C":
-            out.append([2])
+            out.append([0,0,1,0])
         elif i=="G":
-            out.append([3])
+            out.append([0,0,0,1])
     return out
 
 def write_fastas(seqs):
@@ -464,7 +464,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
             tags = [s[0] for s in batch]
 
             # Preprocessing sequences
-            processed_seqs = [torch.tensor(np.transpose(np.array(encode_rna(s[1])), (0,1)), requires_grad=False, dtype=torch.float32) for s in batch] # (batch, seq, base)
+            processed_seqs = [torch.tensor(np.transpose(np.array(encode_rna(s[1]))), requires_grad=False, dtype=torch.float32) for s in batch] # (batch, seq, base)
 
             # Send sequences through the converter
             aa_seqs = [conv(s) for s in processed_seqs][0] # (seq, batch, aa)
