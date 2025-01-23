@@ -272,7 +272,7 @@ pairing_strategy = "greedy"
 
 max_msa = "auto"
 num_seeds = 1 
-use_dropout = False
+use_dropout = True
 
 num_recycles = None if num_recycles == "auto" else int(num_recycles)
 recycle_early_stop_tolerance = None if recycle_early_stop_tolerance == "auto" else float(recycle_early_stop_tolerance)
@@ -535,7 +535,6 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
                     input_features_callback=input_features_callback,
                     save_recycles=False,
                     user_agent="colabfold/google-colab-main",
-                    use_dropout=True,
                     use_gpu_relax=True,
                 )
                 path = ""
