@@ -75,6 +75,7 @@ from tqdm import tqdm
 import shutil
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+torch.backends.cudnn.benchmark = True
 
 def add_hash(x,y):
   return x+"_"+hashlib.sha1(y.encode()).hexdigest()[:5]
@@ -147,18 +148,18 @@ def parse_json(path, a, b, max_len=150):
     macros = []
     f = open(path)
     data = json.load(f)
-    for i in data:
-        for j in data[i]:
-          for k in data[i][j]:
-            num = num + 1
-            if data[i][j][k]["length"]>max_len:
-                continue
-            if num>=a and num<=b:
-                seqs[k]=data[i][j][k]["sequence"]
-                comps.append(i)
-                macros.append(j)
-            if num>b:
-                break
+    for i, j_dict in data.items():
+        for j, k_dict in j_dict.items():
+            for k, details in k_dict.items():
+                num += 1
+                if num > b:
+                    break
+                if details["length"] > max_len:
+                    continue
+                if a <= num <= b:
+                    seqs[k] = details["sequence"]
+                    comps.append(i)
+                    macros.append(j)
     f.close()
     return seqs, comps, macros
 
@@ -300,14 +301,15 @@ def parse_rna(path):
         parser = MMCIFParser()
         structure = parser.get_structure("RNA", path)
         data = []
+        nucleotides = {'A', 'U', 'C', 'G'}
         for model in structure:
-          for chain in model:
-              for residue in chain:
-                  for atom in residue:
-                    if residue.get_resname() in ['A', 'U', 'C', 'G']:
-                      datum = list(atom.get_vector())
-                      temp = (datum[0], datum[1], datum[2], atom.get_name())
-                      data.append(temp)
+            for chain in model:
+                for residue in chain:
+                    if residue.get_resname() in nucleotides:
+                        for atom in residue:
+                            vector = atom.get_vector()
+                            data.append((vector[0], vector[1], vector[2], atom.get_name()))
+
 
         points = []
         angle_points = []
@@ -349,12 +351,12 @@ def parse_protein(path):
         structure = parser.get_structure("Protein", path)
         data = []
         for model in structure:
-          for chain in model:
-              for residue in chain:
-                  for atom in residue:
-                      datum = list(atom.get_vector())
-                      temp = (datum[0], datum[1], datum[2], atom.get_name())
-                      data.append(temp)
+            for chain in model:
+                for residue in chain:
+                    for atom in residue:
+                        vector = atom.get_vector()
+                        data.append((vector[0], vector[1], vector[2], atom.get_name()))
+
 
         points = []
         angle_points = []
@@ -449,59 +451,53 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
       conv = converter
     conv.train()
     corrector = [nn.Parameter(torch.tensor(pp_dist, requires_grad=True, dtype=torch.float32))] # Can't be bothered to do research, so I'll just regress it
-    optimizer = torch.optim.AdamW(conv.parameters(), lr=1.5e-2)
-    dist_optimizer = torch.optim.AdamW(corrector, lr=1.5e-2)
+    optimizer = torch.optim.AdamW(conv.parameters(), lr=1.5e-4)
+    scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=0.01, steps_per_epoch=len(seqs), epochs=epochs)
+    dist_optimizer = torch.optim.AdamW(corrector, lr=1.5e-4)
+    dist_scheduler = torch.optim.lr_scheduler.OneCycleLR(dist_optimizer, max_lr=0.01, steps_per_epoch=len(seqs), epochs=epochs)
 
     model_type = set_model_type(False, "auto")
     download_alphafold_params(model_type, Path("."))
     for epoch in range(epochs):
         for batch in batch_data(seqs, batch_size):
-            optimizer.zero_grad()
-            dist_optimizer.zero_grad()
+            optimizer.zero_grad(set_to_none=True)
+            dist_optimizer.zero_grad(set_to_none=True)
             # batch: ([(tag, seq), (tag, seq),...])
 
             # LAYER 1: RNA-AMINO CONVERSION
             tags = [s[0] for s in batch]
-
-            # Preprocessing sequences
-            processed_seqs = [torch.tensor(np.transpose(np.array(encode_rna(s[1])), (0,1)), requires_grad=False, dtype=torch.float32) for s in batch] # (batch, seq, base)
-
+            processed_seqs = torch.stack(
+                [torch.tensor(np.transpose(encode_rna(s[1]), (0, 1)), dtype=torch.float32) for s in batch]
+            )  # (batch, seq, base)
+            
             # Send sequences through the converter
             aa_seqs = [conv(s) for s in processed_seqs][0] # (seq, batch, aa)
-            temp = []
 
             # Reconvert to letter representation
-            for i in range(len(aa_seqs)):
-                temp.append(''.join([AA_DICT[n] for n in aa_seqs[i]]))
+            aa_seqs_strings = [''.join(AA_DICT[n] for n in seq) for seq in aa_seqs]
 
-            aa_seqs = temp # (seq: String, batch)
+            # Create the final dictionary using `zip` for cleaner logic
+            final_seqs = dict(zip(tags, aa_seqs_strings))
 
-            final_seqs = {} # {tag: seq}
-            for i in range(len(tags)):
-                final_seqs[tags[i]] = aa_seqs[i]
+            # Write the final sequences to FASTA
             write_fastas(final_seqs)
+
+           
 
             num_relax = 1 #@param [0, 1, 5] {type:"raw"}
             #@markdown - specify how many of the top ranked structures to relax using amber
             template_mode = "none" #@param ["none", "pdb100","custom"]
             #@markdown - `none` = no template information is used. `pdb100` = detect templates in pdb100 (see [notes](#pdb100)). `custom` - upload and search own templates (PDB or mmCIF format, see [notes](#custom_templates))
 
-            use_amber = num_relax > 0
             use_cluster_profile = True
-
-            if template_mode == "pdb100":
-                use_templates = True
-                custom_template_path = None
-            else:
-                custom_template_path = None
-                use_templates = False
 
             loss = []
             lengths = 0
 
             for i in tqdm(range(len(final_seqs))):
+              torch.cuda.empty_cache()
               lengths=lengths+len(list(final_seqs.values())[i])
-              with torch.no_grad():
+              with torch.no_grad(), torch.autocast(device_type="cuda"):
                 queries, _ = get_queries(f'FASTAs/{list(final_seqs.keys())[i]}.fasta')
                 jobname = add_hash(list(final_seqs.keys())[i], list(final_seqs.values())[i])
                 results =  run(
@@ -534,7 +530,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
                     use_cluster_profile=use_cluster_profile,
                     input_features_callback=input_features_callback,
                     save_recycles=False,
-                    user_agent="colabfold/google-colab-main",
+                    #user_agent="colabfold/google-colab-main",
                     use_gpu_relax=True,
                 )
                 path = ""
@@ -559,8 +555,14 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
             print(f"Average Loss per Residue: {loss/lengths}")
             print(f"Correction factor: {corrector}\n\n")
             loss.backward()
+            
+            nn.utils.clip_grad_norm_(c.parameters(), 1.0)
+            nn.utils.clip_grad_norm_(corrector.parameters(), 1.0)
+            
             optimizer.step()
             dist_optimizer.step()
+            scheduler.step()
+            dist_scheduler.step()
         torch.save(conv, f'/ConverterWeights/converter_epoch_{epoch}.pt')
         torch.save(conv.state_dict(), f'/ConverterWeights/converter_params_epoch_{epoch}.pt')
         torch.save(corrector, f'/ConverterWeights/corrector_epoch_{epoch}.pt')
@@ -574,12 +576,12 @@ except:
    c = Converter(max_seq_len=200)
    corrector = [nn.Parameter(torch.tensor(6.0, requires_grad=True, dtype=torch.float32))]
 
-c = nn.DataParallel(c)
+c = nn.parallel.DistributedDataParallel(c)
 c.to(device)
 
 #try:
 print("Training...")
-train(seqs, epochs=100, batch_size=4, max_seq_len=100, converter=c, pp_dist=float(corrector[0]))
+train(seqs, epochs=100, batch_size=64, max_seq_len=100, converter=c, pp_dist=float(corrector[0]))
 # except:
 #     print("Error. Exiting training loop")
 #     torch.save(c, f'/ConverterWeights/converter.pt')
