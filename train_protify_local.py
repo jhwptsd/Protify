@@ -1,3 +1,5 @@
+# Import libraries
+
 import os
 import re
 import hashlib
@@ -23,6 +25,8 @@ USE_AMBER = True
 USE_TEMPLATES = False
 PYTHON_VERSION = python_version
 
+
+# Check if necessary packages and files are downloaded
 if USE_AMBER or USE_TEMPLATES:
   if not os.path.isfile("CONDA_READY"):
     print("installing conda...")
@@ -74,12 +78,14 @@ from pathlib import Path
 from tqdm import tqdm
 import shutil
 
+# Set device to CUDA and use benchmarking for optimization
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 torch.backends.cudnn.benchmark = True
 
 def add_hash(x,y):
   return x+"_"+hashlib.sha1(y.encode()).hexdigest()[:5]
 
+# Converter class - essentially just a Transformer model
 class Converter(nn.Module):
     def __init__(self, max_seq_len=150, d_model=64, nhead=8, num_layers=6, dim_feedforward=256, dropout=0.1):
         super(Converter, self).__init__()
@@ -120,6 +126,7 @@ class Converter(nn.Module):
                     out[-1].append((torch.argmax(x[i][j].detach().cpu())).item())
         return out
 
+# Classic positional encoder - good stuff!
 class PositionalEncoding(nn.Module):
     def __init__(self, d_model, dropout=0.1, max_len=5000):
         super(PositionalEncoding, self).__init__()
@@ -141,6 +148,8 @@ def create_padding_mask(sequences, pad_value=0):
     # sequences shape: (seq_len, batch_size, 1)
     return (sequences.squeeze(-1) == pad_value).t()  # (batch_size, seq_len)
 
+
+# Parse RNA3db Sequences file tree
 def parse_json(path, a, b, max_len=150):
     num = -1
     seqs = {}
@@ -576,7 +585,7 @@ except:
    c = Converter(max_seq_len=200)
    corrector = [nn.Parameter(torch.tensor(6.0, requires_grad=True, dtype=torch.float32))]
 
-c = nn.parallel.DistributedDataParallel(c)
+c = nn.DataParallel(c)
 c.to(device)
 
 #try:
