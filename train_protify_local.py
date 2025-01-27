@@ -273,7 +273,7 @@ def get_structure(tag, path):
 
 ### Advanced settings
 model_type = "auto" 
-num_recycles = "3" 
+num_recycles = "1" 
 recycle_early_stop_tolerance = "auto"
 relax_max_iterations = 200 
 pairing_strategy = "greedy"
@@ -465,7 +465,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
     dist_optimizer = torch.optim.AdamW(corrector, lr=1.5e-4)
     dist_scheduler = torch.optim.lr_scheduler.OneCycleLR(dist_optimizer, max_lr=0.01, steps_per_epoch=len(seqs), epochs=epochs)
 
-    model_type = set_model_type(False, "auto")
+    model_type = "alphafold2"
     download_alphafold_params(model_type, Path("."))
     for epoch in range(epochs):
         for batch in batch_data(seqs, batch_size):
