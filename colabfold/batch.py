@@ -1277,20 +1277,17 @@ def run(
         # check if TPU is available
         import jax.tools.colab_tpu
         jax.tools.colab_tpu.setup_tpu()
-        print("Using TPU...")
         logger.info('Running on TPU')
         DEVICE = "tpu"
         use_gpu_relax = False
     except:
         if jax.local_devices()[0].platform == 'cpu':
-            print("Using CPU")
             logger.info("WARNING: no GPU detected, will be using CPU")
             DEVICE = "cpu"
             use_gpu_relax = False
         else:
             import tensorflow as tf
             tf.get_logger().setLevel(logging.ERROR)
-            print("Using GPU...")
             logger.info('Running on GPU')
             DEVICE = "gpu"
             # disable GPU on tensorflow

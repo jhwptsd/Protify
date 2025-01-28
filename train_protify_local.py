@@ -5,7 +5,6 @@ import hashlib
 import random
 import math
 import json
-import jax
 
 import sys
 from sys import version_info
@@ -507,7 +506,6 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
               with torch.no_grad(), torch.autocast(device_type="cuda"):
                 queries, _ = get_queries(f'FASTAs/{list(final_seqs.keys())[i]}.fasta')
                 jobname = add_hash(list(final_seqs.keys())[i], list(final_seqs.values())[i])
-                print(jax.devices())
                 results =  run(
                     queries=queries,
                     result_dir=jobname,
