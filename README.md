@@ -18,7 +18,7 @@ Here is a quick rundown of how to train this model for yourself:
    pip install .
    pip install colabfold[alphafold]
    pip install torch==2.0.1
-   pip install "jax[cuda12_pip]==0.4.35" -f https://storage.googleapis/jax-releases/jax_cuda_releases.html
+   pip install "jax[cuda12_pip]==0.4.35" -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
    ```
 6. Run the code!
   ```
