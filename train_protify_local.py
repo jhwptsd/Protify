@@ -107,7 +107,7 @@ class Converter(nn.Module):
 
     def forward(self, x, src_key_padding_mask=None):
         # x shape: (seq_len, batch_size, 4)
-
+        print(x)
         x = self.input_embedding(x)  # Now: (seq_len, batch_size, d_model)
 
         x = self.pos_encoder(x)
