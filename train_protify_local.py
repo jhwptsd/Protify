@@ -478,7 +478,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
             processed_seqs = [torch.tensor(np.transpose(encode_rna(s[1]), (0, 1)), dtype=torch.float32) for s in batch] # (batch, seq, base)
 
             # Send sequences through the converter
-            aa_seqs = [conv(np.transpose(s, (0,1,2))) for s in processed_seqs][0] # (seq, batch, aa)
+            aa_seqs = [conv(np.transpose(s, (1,0))) for s in processed_seqs][0] # (seq, batch, aa)
 
             # Reconvert to letter representation
             aa_seqs_strings = [''.join(AA_DICT[n] for n in seq) for seq in aa_seqs]
