@@ -455,7 +455,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
         sys.path.insert(0, f"/usr/local/lib/python{python_version}/site-packages/")
 
     if converter==None:
-      conv = Converter(max_seq_len=max_seq_len)
+      conv = Converter(max_seq_len=max_seq_len).to(device)
     else:
       conv = converter
     conv.train()
