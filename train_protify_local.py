@@ -476,6 +476,8 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
             # LAYER 1: RNA-AMINO CONVERSION
             tags = [s[0] for s in batch]
             processed_seqs = [torch.tensor(np.transpose(encode_rna(s[1]), (0, 1)), dtype=torch.float32) for s in batch] # (batch, seq, base)
+
+            print(processed_seqs)
             # Send sequences through the converter
             aa_seqs = [conv(s) for s in processed_seqs][0] # (seq, batch, aa)
 
