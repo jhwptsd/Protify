@@ -78,7 +78,7 @@ from tqdm import tqdm
 import shutil
 
 # Set device to CUDA and use benchmarking for optimization
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 torch.cuda.set_per_process_memory_fraction(0.5)
 torch.backends.cudnn.benchmark = True
 
