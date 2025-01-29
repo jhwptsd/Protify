@@ -435,7 +435,7 @@ class SeqDataset(torch.utils.data.Dataset):
    def __len__(self):
       return len(self.seqs)
    
-    def __getitem__(self, idx):
+   def __getitem__(self, idx):
       return list(self.seqs.values())[idx], list(self.seqs.keys())[idx] # (seq, tag)
 
 def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, converter=None, pp_dist=6.8):
