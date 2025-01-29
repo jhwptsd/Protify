@@ -1,11 +1,5 @@
 # Import libraries
 import os
-import re
-import hashlib
-import random
-import math
-import json
-
 import sys
 from sys import version_info
 
@@ -16,7 +10,6 @@ python_version = f"{version_info.major}.{version_info.minor}"
 
 ## MAKE SURE PIP IS INSTALLED
 os.system("pip install biopython")
-from Bio.PDB import *
 
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -78,102 +71,13 @@ import torch.nn as nn
 from pathlib import Path
 
 from tqdm import tqdm
-import shutil
 
 # Set device to CUDA and use benchmarking for optimization
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-torch.cuda.set_per_process_memory_fraction(0.5)
 torch.backends.cudnn.benchmark = True
 
-def add_hash(x,y):
-  return x+"_"+hashlib.sha1(y.encode()).hexdigest()[:5]
-
-# Converter class - essentially just a Transformer model
-class Converter(nn.Module):
-    def __init__(self, max_seq_len=150, d_model=64, nhead=8, num_layers=6, dim_feedforward=256, dropout=0.1):
-        super(Converter, self).__init__()
-
-        self.d_model = d_model
-
-        self.input_embedding = nn.Linear(4, d_model)
-
-        self.pos_encoder = PositionalEncoding(d_model, dropout, max_len=max_seq_len)
-
-        self.transformer = nn.Transformer(d_model=d_model,
-                                    nhead=nhead,
-                                    dim_feedforward=dim_feedforward,
-                                    num_encoder_layers=num_layers, num_decoder_layers=num_layers)
-
-        self.output_linear = nn.Linear(d_model, 20)
-        self.softmax = nn.Softmax(dim=-1)
-
-
-    def forward(self, x, src_key_padding_mask=None):
-        # x shape: (seq_len, batch_size, 4)
-        x = self.input_embedding(x)  # Now: (seq_len, batch_size, d_model)
-
-        x = self.pos_encoder(x)
-
-        x = self.transformer(x, x, src_key_padding_mask=src_key_padding_mask)
-
-        x = self.output_linear(x)  # Now: (seq_len, batch_size, 20)
-        x = self.softmax(x)
-
-        # Convert softmaxxed matrices into one-dimensional indeces
-        with torch.no_grad():
-            out = []
-            for i in range(len(x)):
-                out.append([])
-                for j in range(len(x[i])):
-                    out[-1].append((torch.argmax(x[i][j].detach().cpu())).item())
-        return out
-
-# Classic positional encoder - good stuff!
-class PositionalEncoding(nn.Module):
-    def __init__(self, d_model, dropout=0.1, max_len=5000):
-        super(PositionalEncoding, self).__init__()
-        self.dropout = nn.Dropout(p=dropout)
-
-        pe = torch.zeros(max_len, d_model)
-        position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, d_model, 2).float() * (-math.log(10000.0) / d_model))
-        pe[:, 0::2] = torch.sin(position * div_term)
-        pe[:, 1::2] = torch.cos(position * div_term)
-        pe = pe.unsqueeze(0).transpose(0, 1)
-        self.register_buffer('pe', pe)
-
-    def forward(self, x):
-        x = x + self.pe[:x.size(0), :]
-        return self.dropout(x)
-
-def create_padding_mask(sequences, pad_value=0):
-    # sequences shape: (seq_len, batch_size, 1)
-    return (sequences.squeeze(-1) == pad_value).t()  # (batch_size, seq_len)
-
-
-# Parse RNA3db Sequences file tree
-def parse_json(path, a, b, max_len=150):
-    num = -1
-    seqs = {}
-    comps = []
-    macros = []
-    f = open(path)
-    data = json.load(f)
-    for i, j_dict in data.items():
-        for j, k_dict in j_dict.items():
-            for k, details in k_dict.items():
-                num += 1
-                if num > b:
-                    break
-                if details["length"] > max_len:
-                    continue
-                if a <= num <= b:
-                    seqs[k] = details["sequence"]
-                    comps.append(i)
-                    macros.append(j)
-    f.close()
-    return seqs, comps, macros
-
+from Converter import Converter
+from Utils import *
 
 seqs = {} # All sequences - may get quite large
 
@@ -206,45 +110,6 @@ AA_DICT = {
     18: "Y",
     19: "V"
 }
-
-def load_data(path, a=0, b=float('inf'), max_len=150):
-    # Load up sequences, components, and macro-tags
-    seqs, components, macro_tags=parse_json(path, a, b, max_len=max_len)
-    print(f"Found {len(seqs)} usable RNA strands...")
-    return seqs, components, macro_tags
-
-def encode_rna(seq):
-    # Convert RNA sequence to nums to feed into Converter
-    out = []
-    for i in seq:
-        if i=="A":
-            out.append([1,0,0,0])
-        elif i=="U":
-            out.append([0,1,0,0])
-        elif i=="C":
-            out.append([0,0,1,0])
-        elif i=="G":
-            out.append([0,0,0,1])
-    return out
-
-def write_fastas(seqs):
-    # Write a dict of {tag: seq} to as many FASTA files as needed
-    for tag, seq in list(seqs.items()):
-        if os.path.exists(f'FASTAs/{tag}.fasta'):
-            continue
-        f = open(f"FASTAs/{tag}.fasta", "w+")
-        f.write(f">{tag}\n{seq}")
-        f.close()
-
-def empty_dir(path, delete=True):
-    # Empty any directory
-    for f in os.listdir(path):
-        if os.path.isfile(os.path.join(path, f)):
-          os.remove(os.path.join(path, f))
-        else:
-          empty_dir(os.path.join(path, f))
-    if delete:
-      os.rmdir(path)
       
 def get_structure(tag, path):
     # Return the structure of an RNA molecule given its tag and the path to the structure directory
@@ -286,139 +151,6 @@ if max_msa == "auto": max_msa = None
 msa_mode = "single_sequence" #@param ["mmseqs2_uniref_env", "mmseqs2_uniref","single_sequence","custom"]
 pair_mode = "unpaired_paired" #@param ["unpaired_paired","paired","unpaired"] {type:"string"}
 #@markdown - "unpaired_paired" = pair sequences from same species + unpaired MSA, "unpaired" = seperate MSA for each chain, "paired" - only use paired sequences.
-            
-def RMSD(p1, p2):
-    if len(p1)>len(p2):
-      loss = torch.sqrt(torch.mean((p1[:len(p2)] - p2)**2))
-    else:
-      loss = torch.sqrt(torch.mean((p1 - p2[:len(p1)])**2))
-    return loss
-
-def tm_score(p1, p2, lt):
-    d0 = lambda l: 1.24 * torch.power(l-15, 3) - 1.8
-    loss = torch.mean(1/(1+torch.power(torch.abs(torch.norm(p1-p2))/d0(lt),2)))
-    return loss
-
-def parse_rna(path):
-    try:
-        parser = MMCIFParser()
-        structure = parser.get_structure("RNA", path)
-        data = []
-        nucleotides = {'A', 'U', 'C', 'G'}
-        for model in structure:
-            for chain in model:
-                for residue in chain:
-                    if residue.get_resname() in nucleotides:
-                        for atom in residue:
-                            vector = atom.get_vector()
-                            data.append((vector[0], vector[1], vector[2], atom.get_name()))
-
-
-        points = []
-        angle_points = []
-        norms = []
-
-        correction_factor = torch.zeros(3, dtype=torch.float32, requires_grad=False)
-
-        for x, y, z, atom in data:
-            x = float(x)
-            y = float(y)
-            z = float(z)
-
-            point = np.add(np.array([x,y,z]), correction_factor)
-
-            if atom == "P":
-              if (correction_factor==torch.zeros(3)).all():
-                correction_factor = torch.tensor([-x, -y, -z])
-              points.append(point)
-              angle_points.append(point)
-            elif atom == "\"C1'\"":
-                angle_points.append(point)
-            elif atom == "\"C4'\"":
-                angle_points.append(point)
-                v1 = angle_points[-1]-angle_points[-2]
-                v2 = angle_points[-3]-angle_points[-2]
-                norms.append(np.cross(v1, v2))
-                angle_points = []
-        points = np.array(points)
-        norms = np.array(norms)
-        return torch.tensor(points, requires_grad=True, dtype=torch.float32), torch.tensor(norms, requires_grad=True, dtype=torch.float32)
-
-    except Exception as e:
-        print("Oops. %s" % e)
-        sys.exit(1)
-
-def parse_protein(path):
-    try:
-        parser = PDBParser()
-        structure = parser.get_structure("Protein", path)
-        data = []
-        for model in structure:
-            for chain in model:
-                for residue in chain:
-                    for atom in residue:
-                        vector = atom.get_vector()
-                        data.append((vector[0], vector[1], vector[2], atom.get_name()))
-
-
-        points = []
-        angle_points = []
-        norms = []
-
-        correction_factor = torch.zeros(3, dtype=torch.float32, requires_grad=False)
-
-        for x, y, z, atom in data:
-            x = float(x)
-            y = float(y)
-            z = float(z)
-
-            point = np.add(np.array([x,y,z]), correction_factor)
-            if atom == "CA":
-              if (correction_factor==torch.zeros(3)).all():
-                correction_factor = torch.tensor([-x, -y, -z])
-              points.append(point)
-              angle_points.append(point)
-            elif atom == "N":
-                angle_points.append(point)
-            elif atom == "C":
-                angle_points.append(point)
-                v1 = angle_points[-1]-angle_points[-2]
-                v2 = angle_points[-3]-angle_points[-2]
-                norms.append(np.cross(v1, v2))
-                angle_points = []
-
-        points = np.array(points)
-        norms = np.array(norms)
-        return torch.tensor(points, requires_grad=True), torch.tensor(norms, requires_grad=True)
-
-    except Exception as e:
-        print("Oops. %s" % e)
-        sys.exit(1)
-        
-def protein_to_rna(protein, rna_path, corrector, tm=False):
-    prot_points, _ = parse_protein(protein)
-    rna_points, _ = parse_rna(rna_path)
-    prot_points = correct_protein_coords(prot_points, corrector)
-    if tm:
-        return tm_score(prot_points, rna_points)
-    return RMSD(prot_points, rna_points)
-
-def correct_protein_coords(points, corrector):
-    correction_factor = corrector.unsqueeze(0)
-
-    # Calculate vector differences between consecutive points
-    vectors = points[1:] - points[:-1]
-    norms = torch.norm(vectors, dim=1, keepdim=True)
-    normalized_vectors = vectors / norms
-
-    # Apply correction factor
-    corrected_vectors = normalized_vectors * correction_factor
-
-    corrected_points = torch.zeros_like(points)
-    corrected_points[0] = points[0]
-    corrected_points[1:] = points[:-1] + corrected_vectors
-
-    return corrected_points
 
 def input_features_callback(input_features):
   pass
