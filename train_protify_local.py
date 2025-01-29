@@ -320,7 +320,7 @@ except:
 
 #c = nn.DataParallel(c)
 c = torch.compile(c)
-c.to(device)
+c = c.to(device)
 
 #try:
 print("Training...")
