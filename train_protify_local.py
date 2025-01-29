@@ -469,7 +469,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
     dist_optimizer = torch.optim.AdamW(corrector, lr=1.5e-4)
     dist_scheduler = torch.optim.lr_scheduler.OneCycleLR(dist_optimizer, max_lr=0.01, steps_per_epoch=len(seqs), epochs=epochs)
 
-    dataloader = torch.utils.data.DataLoader(seqs, batch_size=batch_size, shuffle=True, drop_last=True)
+    dataloader = torch.utils.data.DataLoader(seqs, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
 
     model_type = "alphafold2"
     download_alphafold_params(model_type, Path("."))
@@ -541,7 +541,6 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
                     use_cluster_profile=use_cluster_profile,
                     input_features_callback=input_features_callback,
                     save_recycles=False,
-                    #user_agent="colabfold/google-colab-main",
                     use_gpu_relax=True,
                 )
                 path = ""
@@ -588,6 +587,7 @@ except:
    corrector = [nn.Parameter(torch.tensor(6.0, requires_grad=True, dtype=torch.float32))]
 
 #c = nn.DataParallel(c)
+c = torch.compile(c)
 c.to(device)
 
 #try:
