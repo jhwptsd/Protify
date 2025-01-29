@@ -258,7 +258,7 @@ def get_structure(tag, path):
     #  -------- tag 1a.cif
     #  -------- tag 1b.cif
     # ...
-    index = list(seqs.keys()).index(tag)
+    index = list(old_seqs.keys()).index(tag)
     component = components[index]
     macro_tag = macro_tags[index]
 
@@ -483,7 +483,6 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
             processed_seqs = [torch.tensor(np.transpose(encode_rna(s), (0, 1)), dtype=torch.float32).to(device) for s in seqs] # (batch, seq, base)
 
             # Send sequences through the converter
-            print([s.device for s in processed_seqs])
             aa_seqs = [conv(s) for s in processed_seqs][0] # (seq, batch, aa)
 
             # Reconvert to letter representation
@@ -579,8 +578,8 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
         torch.save(conv.state_dict(), f'/ConverterWeights/converter_params_epoch_{epoch}.pt')
         torch.save(corrector, f'/ConverterWeights/corrector_epoch_{epoch}.pt')
         
-seqs, components, macro_tags = load_data(seq_path, 0, 1645, max_len=100)
-seqs = SeqDataset(seqs)
+old_seqs, components, macro_tags = load_data(seq_path, 0, 1645, max_len=100)
+seqs = SeqDataset(old_seqs)
 
 try:
    c = torch.load('/ConverterWeights/converter.pt')
