@@ -85,6 +85,21 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 torch.cuda.set_per_process_memory_fraction(0.5)
 torch.backends.cudnn.benchmark = True
 
+import torch.distributed as dist
+from torch.utils.data.distributed import DistributedSampler
+import torch.multiprocessing as mp
+def setup(rank, world_size):
+    os.environ['MASTER_ADDR'] = 'localhost'
+    os.environ['MASTER_PORT'] = '12355'
+    dist.init_process_group("nccl", rank=rank, world_size=world_size)
+
+def prepare(rank, world_size, dataset, batch_size=32, pin_memory=False, num_workers=0):
+    sampler = DistributedSampler(dataset, num_replicas=world_size, rank=rank, shuffle=True, drop_last=True)
+    
+    dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, pin_memory=pin_memory, num_workers=num_workers, drop_last=True, shuffle=True, sampler=sampler)
+    
+    return dataloader
+
 def add_hash(x,y):
   return x+"_"+hashlib.sha1(y.encode()).hexdigest()[:5]
 
@@ -438,7 +453,7 @@ class SeqDataset(torch.utils.data.Dataset):
    def __getitem__(self, idx):
       return list(self.seqs.values())[idx], list(self.seqs.keys())[idx] # (seq, tag)
 
-def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, converter=None, pp_dist=6.8):
+def train(rank, world_size, seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, converter=None, pp_dist=6.8):
     os.makedirs("/ConverterWeights", exist_ok=True)
     os.makedirs('FASTAs', exist_ok=True)
     print("Converter Weights folder generated.")
@@ -459,7 +474,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
         sys.path.insert(0, f"/usr/local/lib/python{python_version}/site-packages/")
 
     if converter==None:
-      conv = Converter(max_seq_len=max_seq_len).to(device)
+      conv = Converter(max_seq_len=max_seq_len)
     else:
       conv = converter
     conv.train()
@@ -469,11 +484,15 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
     dist_optimizer = torch.optim.AdamW(corrector, lr=1.5e-4)
     dist_scheduler = torch.optim.lr_scheduler.OneCycleLR(dist_optimizer, max_lr=0.01, steps_per_epoch=len(seqs), epochs=epochs)
 
-    dataloader = torch.utils.data.DataLoader(seqs, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=4, pin_memory=True)
+    dataloader = prepare(dataset=seqs, rank=rank, world_size=world_size, batch_size=batch_size) #torch.utils.data.DataLoader(seqs, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=8, pin_memory=True)
+
+    conv = conv.to(rank)
+    conv = torch.nn.parallel.DistributedDataParallel(conv, device_ids=[rank], output_device=rank, find_unused_parameters=True)
 
     model_type = "alphafold2"
     download_alphafold_params(model_type, Path("."))
     for epoch in range(epochs):
+        dataloader.sampler.set_epoch(epoch)
         for seqs, tags in dataloader:
             optimizer.zero_grad(set_to_none=True)
             dist_optimizer.zero_grad(set_to_none=True)
@@ -572,10 +591,16 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
             dist_optimizer.step()
             scheduler.step()
             dist_scheduler.step()
+        dist.destroy_process_group()
         torch.save(conv, f'/ConverterWeights/converter_epoch_{epoch}.pt')
         torch.save(conv.state_dict(), f'/ConverterWeights/converter_params_epoch_{epoch}.pt')
         torch.save(corrector, f'/ConverterWeights/corrector_epoch_{epoch}.pt')
-        
+
+rank = 0
+world_size = torch.cuda.device_count()    
+
+setup(rank, world_size)
+
 old_seqs, components, macro_tags = load_data(seq_path, 0, 1645, max_len=100)
 seqs = SeqDataset(old_seqs)
 
@@ -592,7 +617,12 @@ c.to(device)
 
 #try:
 print("Training...")
-train(seqs, epochs=10, batch_size=64, max_seq_len=100, converter=c, pp_dist=float(corrector[0]))
+mp.spawn(
+        train,
+        args=(world_size, seqs, 10, 64, 100, c, float(corrector[0])),
+        nprocs=world_size
+    )
+#train(seqs, epochs=10, batch_size=64, max_seq_len=100, converter=c, pp_dist=float(corrector[0]), rank=rank, world_size=world_size)
 # except:
 #     print("Error. Exiting training loop")
 #     torch.save(c, f'/ConverterWeights/converter.pt')
