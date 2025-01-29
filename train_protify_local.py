@@ -524,7 +524,7 @@ def train(rank, world_size, seqs, epochs=50, batch_size=32,tm_score=False, max_s
             loss = []
             lengths = 0
 
-            for i in tqdm(range(len(final_seqs))):
+            for i in range(len(final_seqs)):
               torch.cuda.empty_cache()
               lengths=lengths+len(list(final_seqs.values())[i])
               with torch.no_grad(), torch.autocast(device_type="cuda"):
