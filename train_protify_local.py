@@ -8,6 +8,9 @@ import json
 
 import sys
 from sys import version_info
+
+import torch.utils
+import torch.utils.data
 python_version = f"{version_info.major}.{version_info.minor}"
 
 
@@ -78,7 +81,7 @@ from tqdm import tqdm
 import shutil
 
 # Set device to CUDA and use benchmarking for optimization
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 torch.cuda.set_per_process_memory_fraction(0.5)
 torch.backends.cudnn.benchmark = True
 
@@ -107,8 +110,6 @@ class Converter(nn.Module):
 
     def forward(self, x, src_key_padding_mask=None):
         # x shape: (seq_len, batch_size, 4)
-        device = next(self.parameters()).device
-        x = x.to(device)
         x = self.input_embedding(x)  # Now: (seq_len, batch_size, d_model)
 
         x = self.pos_encoder(x)
@@ -211,14 +212,6 @@ def load_data(path, a=0, b=float('inf'), max_len=150):
     seqs, components, macro_tags=parse_json(path, a, b, max_len=max_len)
     print(f"Found {len(seqs)} usable RNA strands...")
     return seqs, components, macro_tags
-
-def batch_data(iterable, n=1):
-    # Random data batching function
-    l = len(iterable)
-    iter = [(t, s) for t, s in list(iterable.items())]
-    random.shuffle(iter)
-    for ndx in range(0, l, n):
-        yield iter[ndx:min(ndx + n, l)]
 
 def encode_rna(seq):
     # Convert RNA sequence to nums to feed into Converter
@@ -435,6 +428,16 @@ def prediction_callback(protein_obj, length,
   model_name, relaxed = mode
   pass
 
+class SeqDataset(torch.utils.data.Dataset):
+   def __init__(self, seqs):
+      self.seqs = seqs
+    
+   def __len__(self):
+      return len(self.seqs)
+   
+    def __getitem__(self, idx):
+      return list(self.seqs.values())[idx], list(self.seqs.keys())[idx] # (seq, tag)
+
 def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, converter=None, pp_dist=6.8):
     os.makedirs("/ConverterWeights", exist_ok=True)
     os.makedirs('FASTAs', exist_ok=True)
@@ -466,17 +469,18 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
     dist_optimizer = torch.optim.AdamW(corrector, lr=1.5e-4)
     dist_scheduler = torch.optim.lr_scheduler.OneCycleLR(dist_optimizer, max_lr=0.01, steps_per_epoch=len(seqs), epochs=epochs)
 
+    dataloader = torch.utils.data.DataLoader(seqs, batch_size=batch_size, shuffle=True, drop_last=True)
+
     model_type = "alphafold2"
     download_alphafold_params(model_type, Path("."))
     for epoch in range(epochs):
-        for batch in batch_data(seqs, batch_size):
+        for seqs, tags in dataloader:
             optimizer.zero_grad(set_to_none=True)
             dist_optimizer.zero_grad(set_to_none=True)
             # batch: ([(tag, seq), (tag, seq),...])
 
             # LAYER 1: RNA-AMINO CONVERSION
-            tags = [s[0] for s in batch]
-            processed_seqs = [torch.tensor(np.transpose(encode_rna(s[1]), (0, 1)), dtype=torch.float32).to(device) for s in batch] # (batch, seq, base)
+            processed_seqs = [torch.tensor(np.transpose(encode_rna(s), (0, 1)), dtype=torch.float32).to(device) for s in seqs] # (batch, seq, base)
 
             # Send sequences through the converter
             aa_seqs = [conv(s) for s in processed_seqs][0] # (seq, batch, aa)
@@ -484,7 +488,6 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
             # Reconvert to letter representation
             aa_seqs_strings = [''.join(AA_DICT[n] for n in seq) for seq in aa_seqs]
 
-            # Create the final dictionary using `zip` for cleaner logic
             final_seqs = dict(zip(tags, aa_seqs_strings))
 
             # Write the final sequences to FASTA
@@ -492,10 +495,10 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
 
            
 
-            num_relax = 1 #@param [0, 1, 5] {type:"raw"}
-            #@markdown - specify how many of the top ranked structures to relax using amber
-            template_mode = "none" #@param ["none", "pdb100","custom"]
-            #@markdown - `none` = no template information is used. `pdb100` = detect templates in pdb100 (see [notes](#pdb100)). `custom` - upload and search own templates (PDB or mmCIF format, see [notes](#custom_templates))
+            num_relax = 0
+            # specify how many of the top ranked structures to relax using amber
+            template_mode = "none"
+            #`none` = no template information is used. `pdb100` = detect templates in pdb100 (see [notes](#pdb100)). `custom` - upload and search own templates (PDB or mmCIF format, see [notes](#custom_templates))
 
             use_cluster_profile = True
 
@@ -576,6 +579,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
         torch.save(corrector, f'/ConverterWeights/corrector_epoch_{epoch}.pt')
         
 seqs, components, macro_tags = load_data(seq_path, 0, 1645, max_len=100)
+seqs = SeqDataset(seqs)
 
 try:
    c = torch.load('/ConverterWeights/converter.pt')
