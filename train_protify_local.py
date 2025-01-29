@@ -568,7 +568,6 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
             loss.backward()
             
             nn.utils.clip_grad_norm_(c.parameters(), 1.0)
-            nn.utils.clip_grad_norm_(corrector.parameters(), 1.0)
             
             optimizer.step()
             dist_optimizer.step()
