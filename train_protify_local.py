@@ -318,8 +318,7 @@ except:
    c = Converter(max_seq_len=200)
    corrector = [nn.Parameter(torch.tensor(6.0, requires_grad=True, dtype=torch.float32))]
 
-print(torch.cuda.device_count()>1)
-c = nn.DataParallel(c)
+c = nn.DataParallel(c, device_ids=[0, 1, 2, 3])
 #c = torch.compile(c)
 c = c.to(device)
 
