@@ -318,13 +318,13 @@ except:
    c = Converter(max_seq_len=200)
    corrector = [nn.Parameter(torch.tensor(6.0, requires_grad=True, dtype=torch.float32))]
 
-c = nn.DataParallel(c, device_ids=[0, 1])
+c = nn.DataParallel(c, device_ids=[0, 1,2,3])
 #c = torch.compile(c)
 c = c.to(device)
 
 #try:
 print("Training...")
-train(seqs, epochs=10, batch_size=64, max_seq_len=100, converter=c, pp_dist=float(corrector[0]))
+train(seqs, epochs=10, batch_size=1, max_seq_len=100, converter=c, pp_dist=float(corrector[0]))
 # except:
 #     print("Error. Exiting training loop")
 #     torch.save(c, f'/ConverterWeights/converter.pt')
