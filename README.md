@@ -24,3 +24,5 @@ Here is a quick rundown of how to train this model for yourself:
   ```
   python train_protify_local.py
   ```
+
+Alternatavly, you could replace step 5 with ``` python setup.py ```
