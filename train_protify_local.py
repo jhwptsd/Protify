@@ -318,7 +318,7 @@ except:
    c = Converter(max_seq_len=200)
    corrector = [nn.Parameter(torch.tensor(6.0, requires_grad=True, dtype=torch.float32))]
 
-c = nn.DataParallel(c, device_ids=[0, 1, 2, 3])
+c = nn.DataParallel(c, device_ids=[0, 1])
 #c = torch.compile(c)
 c = c.to(device)
 
