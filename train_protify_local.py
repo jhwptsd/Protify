@@ -213,12 +213,20 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
 
             # LAYER 1: RNA-AMINO CONVERSION
             processed_seqs = [torch.tensor(np.transpose(encode_rna(s), (0, 1)), dtype=torch.float32).to(device) for s in seqs] # (batch, seq, base)
+            lengths = [len(s) for s in processed_seqs]
+
+            # Pad sequences
+            for i in range(len(processed_seqs)):
+               m = nn.ZeroPad2d((0,0,0,max_seq_len-lengths[i]))
+               processed_seqs[i] = m(processed_seqs[i])
+            processed_seqs = torch.stack(processed_seqs).to(device)
 
             # Send sequences through the converter
-            aa_seqs = [conv(s) for s in processed_seqs][0] # (seq, batch, aa)
+            aa_seqs = conv(processed_seqs) # (seq, batch, aa)
+            #aa_seqs = [conv(s) for s in processed_seqs][0] # (seq, batch, aa)
 
             # Reconvert to letter representation
-            aa_seqs_strings = [''.join(AA_DICT[n] for n in seq) for seq in aa_seqs]
+            aa_seqs_strings = [''.join(AA_DICT[aa_seqs[i][n]] for n in range(0, lengths[i])) for i in range(len(aa_seqs))]
 
             final_seqs = dict(zip(tags, aa_seqs_strings))
 
@@ -318,13 +326,13 @@ except:
    c = Converter(max_seq_len=200)
    corrector = [nn.Parameter(torch.tensor(6.0, requires_grad=True, dtype=torch.float32))]
 
-c = nn.DataParallel(c, device_ids=[0, 1,2,3])
+c = nn.DataParallel(c, device_ids=[0, 1, 2, 3])
 #c = torch.compile(c)
 c = c.to(device)
 
 #try:
 print("Training...")
-train(seqs, epochs=10, batch_size=1, max_seq_len=100, converter=c, pp_dist=float(corrector[0]))
+train(seqs, epochs=10, batch_size=32, max_seq_len=100, converter=c, pp_dist=float(corrector[0]))
 # except:
 #     print("Error. Exiting training loop")
 #     torch.save(c, f'/ConverterWeights/converter.pt')
