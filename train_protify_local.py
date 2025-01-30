@@ -221,13 +221,14 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
                processed_seqs[i] = m(processed_seqs[i])
             processed_seqs = torch.stack(processed_seqs).to(device)
 
+            print(processed_seqs)
+
             # Send sequences through the converter
             aa_seqs = conv(processed_seqs) # (seq, batch, aa)
             #aa_seqs = [conv(s) for s in processed_seqs][0] # (seq, batch, aa)
 
             # Reconvert to letter representation
             aa_seqs_strings = [''.join(AA_DICT[aa_seqs[i][n]] for n in range(0, lengths[i])) for i in range(len(aa_seqs))]
-
             final_seqs = dict(zip(tags, aa_seqs_strings))
 
             # Write the final sequences to FASTA
