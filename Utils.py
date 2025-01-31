@@ -180,11 +180,30 @@ def parse_protein(path):
     except Exception as e:
         print("Oops. %s" % e)
         sys.exit(1)
+     
+def kabsch_algorithm(P, Q):
+    P_original = np.array(Q)
+    Q_aligned = np.array(P)
+    Q = np.array(Q)
+    P = np.array(P)
+    
+    H = P.T @ Q
+    U, S, Vt = np.linalg.svd(H)
+    R = Vt.T @ U.T
+    
+    if np.linalg.det(R) < 0:
+        Vt[-1, :] *= -1
+        R = Vt.T @ U.T
         
+    Q_aligned = Q_aligned @ R
+    return P_original, Q_aligned
+     
+   
 def protein_to_rna(protein, rna_path, corrector, tm=False):
     prot_points, _ = parse_protein(protein)
     rna_points, _ = parse_rna(rna_path)
     prot_points = correct_protein_coords(prot_points, corrector)
+    prot_points, rna_points = kabsch_algorithm(prot_points, rna_points)
     if tm:
         return tm_score(prot_points, rna_points)
     return RMSD(prot_points, rna_points)
