@@ -182,10 +182,10 @@ def parse_protein(path):
         sys.exit(1)
      
 def kabsch_algorithm(P, Q):
-    P_original = np.array(Q)
-    Q_aligned = np.array(P)
-    Q = np.array(Q)
-    P = np.array(P)
+    P_original = Q.detach().numpy()
+    Q_aligned = P.detach().numpy()
+    Q = Q.detach().numpy()
+    P = P.detach().numpy()
     
     H = P.T @ Q
     U, S, Vt = np.linalg.svd(H)
