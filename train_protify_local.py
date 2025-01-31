@@ -221,8 +221,6 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
                processed_seqs[i] = m(processed_seqs[i])
             processed_seqs = torch.stack(processed_seqs).to(device)
 
-            print(processed_seqs)
-
             # Send sequences through the converter
             aa_seqs = conv(processed_seqs) # (seq, batch, aa)
             #aa_seqs = [conv(s) for s in processed_seqs][0] # (seq, batch, aa)
@@ -327,7 +325,7 @@ except:
    c = Converter(max_seq_len=200)
    corrector = [nn.Parameter(torch.tensor(6.0, requires_grad=True, dtype=torch.float32))]
 
-c = nn.DataParallel(c, device_ids=[0, 1, 2, 3])
+#c = nn.DataParallel(c, device_ids=[0, 1, 2, 3])
 #c = torch.compile(c)
 c = c.to(device)
 
