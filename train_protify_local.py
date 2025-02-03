@@ -389,7 +389,7 @@ c = c.to(device)
 
 #try:
 print("Training...")
-train(seqs, epochs=10, batch_size=32, max_seq_len=100, converter=c, pp_dist=float(corrector[0]))
+train(seqs, epochs=10, batch_size=4, max_seq_len=100, converter=c, pp_dist=float(corrector[0]))
 # except:
 #     print("Error. Exiting training loop")
 #     torch.save(c, f'/ConverterWeights/converter.pt')
