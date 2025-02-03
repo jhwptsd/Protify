@@ -234,7 +234,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
             # Send sequences through the converter
             aa_seqs = conv(processed_seqs) # (seq, batch, aa)
 
-            with torch.no_grad(), torch.autocast(device_type="cuda"):
+            with torch.autocast(device_type="cuda"):
                 # Reconvert to letter representation
                 aa_seqs_strings = [''.join(AA_DICT[aa_seqs[i][n]] for n in range(0, lengths[i])) for i in range(len(aa_seqs))]
                 final_seqs = dict(zip(tags, aa_seqs_strings))
@@ -270,6 +270,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
             print(f"\n\nCurrent Loss: {loss}")
             print(f"Average Loss per Residue: {loss/lengths}")
             print(f"Correction factor: {corrector}\n\n")
+            loss.requires_grad = True
             loss.backward()
             
             nn.utils.clip_grad_norm_(c.parameters(), 1.0)
