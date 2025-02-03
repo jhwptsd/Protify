@@ -20,6 +20,8 @@ USE_AMBER = True
 USE_TEMPLATES = False
 PYTHON_VERSION = python_version
 
+TF_FORCE_UNIFIED_MEMORY = 1
+
 
 # Check if necessary packages and files are downloaded
 if USE_AMBER or USE_TEMPLATES:
@@ -223,7 +225,6 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
 
             # Send sequences through the converter
             aa_seqs = conv(processed_seqs) # (seq, batch, aa)
-            #aa_seqs = [conv(s) for s in processed_seqs][0] # (seq, batch, aa)
 
             # Reconvert to letter representation
             aa_seqs_strings = [''.join(AA_DICT[aa_seqs[i][n]] for n in range(0, lengths[i])) for i in range(len(aa_seqs))]
