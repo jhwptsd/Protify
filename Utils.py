@@ -203,7 +203,10 @@ def protein_to_rna(protein, rna_path, corrector, tm=False):
     prot_points, _ = parse_protein(protein)
     rna_points, _ = parse_rna(rna_path)
     prot_points = correct_protein_coords(prot_points, corrector)
-    print(prot_points.size(), rna_points.size())
+    if len(prot_points)>len(rna_points):
+        prot_points = prot_points[:len(rna_points)]
+    elif len(rna_points)>len(prot_points):
+        rna_points = rna_points[:len(prot_points)]
     prot_points, rna_points = kabsch_algorithm(prot_points, rna_points)
     if tm:
         return tm_score(prot_points, rna_points)
