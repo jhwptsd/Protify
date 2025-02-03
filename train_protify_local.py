@@ -4,8 +4,7 @@ import os
 import sys
 from sys import version_info
 
-import multiprocessing as mp
-mp.set_start_method('spawn', force=True)
+import torch.multiprocessing as mp
 
 import torch.utils
 import torch.utils.data
@@ -67,10 +66,8 @@ if not os.path.exists("rna3db-mmcifs"):
 seq_path = "rna3db-jsons/cluster.json"
 struct_path = "rna3db-mmcifs"
 
-from colabfold.download import download_alphafold_params, default_data_dir
-from colabfold.utils import setup_logging
-from colabfold.batch import get_queries, run, set_model_type
-from colabfold.plot import plot_msa_v2
+from colabfold.download import download_alphafold_params
+from colabfold.batch import get_queries, run
 import numpy as np
 import torch
 import torch.nn as nn
@@ -81,6 +78,7 @@ from tqdm import tqdm
 # Set device to CUDA and use benchmarking for optimization
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 torch.backends.cudnn.benchmark = True
+torch.backends.cudnn.enabled = True
 
 from Converter import Converter
 from Utils import *
@@ -178,8 +176,6 @@ class SeqDataset(torch.utils.data.Dataset):
 
 def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, converter=None, pp_dist=6.8):
 
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
-
     os.makedirs("/ConverterWeights", exist_ok=True)
     os.makedirs('FASTAs', exist_ok=True)
 
@@ -219,6 +215,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
     for epoch in range(epochs):
         for seqs, tags in dataloader:
             torch.cuda.empty_cache()
+            torch.cuda.synchronize()
             optimizer.zero_grad(set_to_none=True)
             dist_optimizer.zero_grad(set_to_none=True)
             # batch: ([(tag, seq), (tag, seq),...])
@@ -255,12 +252,14 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
                print("Parallelizing ColabFold...")
                results = pool.starmap(run_parallel, zip(fasta_files, jobnames, gpu_assignments))
 
+            pool.close()
+            pool.join()
+            
             print("Computing losses...")
             for jobname, path in results:
                temp_loss = (protein_to_rna(path, get_structure(jobname, struct_path), corrector[0], tm=tm_score))
                loss.append(temp_loss)
                empty_dir(jobname)
-
 
             # for i in tqdm(range(len(final_seqs))):
             #   lengths=lengths+len(list(final_seqs.values())[i])
@@ -338,7 +337,6 @@ def run_parallel(fasta_file, jobname, gpu_id):
 
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
 
-    torch.cuda.init()
     torch.cuda.set_device(0)
 
     queries, _ = get_queries(fasta_file)
@@ -384,6 +382,9 @@ def run_parallel(fasta_file, jobname, gpu_id):
     return jobname, path
 
 if __name__=="__main__":
+
+    mp.set_start_method('spawn', force=True)
+
     old_seqs, components, macro_tags = load_data(seq_path, 0, 1645, max_len=100)
     seqs = SeqDataset(old_seqs)
 
@@ -394,8 +395,6 @@ if __name__=="__main__":
         c = Converter(max_seq_len=200)
         corrector = [nn.Parameter(torch.tensor(6.0, requires_grad=True, dtype=torch.float32))]
 
-    #c = nn.DataParallel(c, device_ids=[0, 1, 2, 3])
-    #c = torch.compile(c)
     c = c.to(device)
 
     #try:
