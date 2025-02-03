@@ -223,7 +223,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
             # batch: ([(tag, seq), (tag, seq),...])
 
             # LAYER 1: RNA-AMINO CONVERSION
-            processed_seqs = [torch.tensor(np.transpose(encode_rna(s), (0, 1)), dtype=torch.float32).to(device) for s in seqs] # (batch, seq, base)
+            processed_seqs = [torch.tensor(np.transpose(encode_rna(s), (0, 1)), dtype=torch.float32) for s in seqs] # (batch, seq, base)
             lengths = [len(s) for s in processed_seqs]
 
             # Pad sequences
