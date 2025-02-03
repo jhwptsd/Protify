@@ -16,6 +16,7 @@ os.system("pip install biopython")
 
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.filterwarnings("ignore")
 from Bio import BiopythonDeprecationWarning
 warnings.simplefilter(action='ignore', category=BiopythonDeprecationWarning)
 
@@ -233,84 +234,34 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
             # Send sequences through the converter
             aa_seqs = conv(processed_seqs) # (seq, batch, aa)
 
-            # Reconvert to letter representation
-            aa_seqs_strings = [''.join(AA_DICT[aa_seqs[i][n]] for n in range(0, lengths[i])) for i in range(len(aa_seqs))]
-            final_seqs = dict(zip(tags, aa_seqs_strings))
+            with torch.no_grad(), torch.autocast(device_type="cuda"):
+                # Reconvert to letter representation
+                aa_seqs_strings = [''.join(AA_DICT[aa_seqs[i][n]] for n in range(0, lengths[i])) for i in range(len(aa_seqs))]
+                final_seqs = dict(zip(tags, aa_seqs_strings))
 
-            # Write the final sequences to FASTA
-            write_fastas(final_seqs)
+                # Write the final sequences to FASTA
+                write_fastas(final_seqs)
 
-            loss = []
-            lengths = np.sum(np.array([len(list(final_seqs.values())[i]) for i in range(len(final_seqs))]))
+                loss = []
+                lengths = np.sum(np.array([len(list(final_seqs.values())[i]) for i in range(len(final_seqs))]))
 
-            with mp.Pool(processes=num_gpus) as pool:
-               jobnames = list(final_seqs.keys())
-               fasta_files = [f'FASTAs/{name}.fasta' for name in jobnames]
-               gpu_assignments = [i % num_gpus for i in range(len(fasta_files))]
+                with mp.Pool(processes=num_gpus) as pool:
+                    jobnames = list(final_seqs.keys())
+                    fasta_files = [f'FASTAs/{name}.fasta' for name in jobnames]
+                    gpu_assignments = [i % num_gpus for i in range(len(fasta_files))]
 
 
-               print("Parallelizing ColabFold...")
-               results = pool.starmap(run_parallel, zip(fasta_files, jobnames, gpu_assignments))
+                    print("Parallelizing ColabFold...")
+                    results = pool.starmap(run_parallel, zip(fasta_files, jobnames, gpu_assignments))
 
-            pool.close()
-            pool.join()
+                pool.close()
+                pool.join()
 
-            print("Computing losses...")
-            for jobname, path in results:
-               temp_loss = (protein_to_rna(path, get_structure(jobname, struct_path), corrector[0], tm=tm_score))
-               loss.append(temp_loss)
-               empty_dir(jobname)
-
-            # for i in tqdm(range(len(final_seqs))):
-            #   lengths=lengths+len(list(final_seqs.values())[i])
-            #   with torch.no_grad(), torch.autocast(device_type="cuda"):
-            #     queries, _ = get_queries(f'FASTAs/{list(final_seqs.keys())[i]}.fasta')
-            #     jobname = add_hash(list(final_seqs.keys())[i], list(final_seqs.values())[i])
-            #     results =  run(
-            #         queries=queries,
-            #         result_dir=jobname,
-            #         use_templates=USE_TEMPLATES,
-            #         custom_template_path=None,
-            #         num_relax=0,
-            #         msa_mode=msa_mode,
-            #         model_type=model_type,
-            #         num_models=1,
-            #         num_recycles=num_recycles,
-            #         relax_max_iterations=relax_max_iterations,
-            #         recycle_early_stop_tolerance=recycle_early_stop_tolerance,
-            #         num_seeds=num_seeds,
-            #         use_dropout=use_dropout,
-            #         model_order=[1,2,3,4,5],
-            #         is_complex=False,
-            #         data_dir=Path("."),
-            #         keep_existing_results=False,
-            #         rank_by="auto",
-            #         pair_mode=pair_mode,
-            #         pairing_strategy=pairing_strategy,
-            #         stop_at_score=float(100),
-            #         prediction_callback=prediction_callback,
-            #         dpi=100,
-            #         zip_results=False,
-            #         save_all=False,
-            #         max_msa=max_msa,
-            #         use_cluster_profile=True,
-            #         input_features_callback=input_features_callback,
-            #         save_recycles=False,
-            #         use_gpu_relax=True,
-            #     )
-            #     path = ""
-            #     for file in os.listdir(f"{jobname}"):
-            #       if file.endswith(".pdb"):
-            #         path = os.path.join(f"{jobname}", file)
-            #         break
-            #   temp_loss = (protein_to_rna(path, get_structure(list(final_seqs.keys())[i], struct_path), corrector[0], tm=tm_score))
-
-                # Download generated/actual for qualitative comp
-                # shutil.copy(path, "/content/generated.pdb")
-                # shutil.copy(get_structure(list(final_seqs.keys())[i], struct_path), "/content/actual.cif")
-            #   with torch.no_grad():
-            #     loss.append(temp_loss)
-            #     empty_dir(f"{jobname}")
+                print("Computing losses...")
+                for jobname, path in results:
+                    temp_loss = (protein_to_rna(path, get_structure(jobname, struct_path), corrector[0], tm=tm_score))
+                    loss.append(temp_loss)
+                    empty_dir(jobname)
 
             lengths = lengths/batch_size
 
@@ -333,8 +284,6 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
 
 
 def run_parallel(fasta_file, jobname, gpu_id):
-    old = sys.stderr
-    sys.stderr = DevNull()
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
 
     torch.cuda.set_device(0)
@@ -379,7 +328,6 @@ def run_parallel(fasta_file, jobname, gpu_id):
         if file.endswith(".pdb"):
             path = os.path.join(jobname, file)
             break
-    sys.stderr = old
     return jobname, path
 
 if __name__=="__main__":

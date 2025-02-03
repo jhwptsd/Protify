@@ -228,9 +228,3 @@ def correct_protein_coords(points, corrector):
     corrected_points[1:] = points[:-1] + corrected_vectors
 
     return corrected_points
-
-import sys
-
-class DevNull:
-    def write(self, msg):
-        pass
