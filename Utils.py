@@ -221,7 +221,7 @@ def correct_protein_coords(points, corrector):
     normalized_vectors = vectors / norms
 
     # Apply correction factor
-    corrected_vectors = normalized_vectors.detach() * correction_factor.detach()
+    corrected_vectors = normalized_vectors.detach().cpu() * correction_factor.detach().cpu()
 
     corrected_points = torch.zeros_like(points)
     corrected_points[0] = points[0]
