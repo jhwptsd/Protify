@@ -203,6 +203,7 @@ def protein_to_rna(protein, rna_path, corrector, tm=False):
     prot_points, _ = parse_protein(protein)
     rna_points, _ = parse_rna(rna_path)
     prot_points = correct_protein_coords(prot_points, corrector)
+    print(prot_points.size(), rna_points.size())
     prot_points, rna_points = kabsch_algorithm(prot_points, rna_points)
     if tm:
         return tm_score(prot_points, rna_points)
@@ -224,3 +225,16 @@ def correct_protein_coords(points, corrector):
     corrected_points[1:] = points[:-1] + corrected_vectors
 
     return corrected_points
+
+from contextlib import contextmanager
+import sys, os
+
+@contextmanager
+def suppress_stdout():
+    with open(os.devnull, "w") as devnull:
+        old_stdout = sys.stdout
+        sys.stdout = devnull
+        try:  
+            yield
+        finally:
+            sys.stdout = old_stdout

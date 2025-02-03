@@ -254,7 +254,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
 
             pool.close()
             pool.join()
-            
+
             print("Computing losses...")
             for jobname, path in results:
                temp_loss = (protein_to_rna(path, get_structure(jobname, struct_path), corrector[0], tm=tm_score))
@@ -333,8 +333,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
 
 
 def run_parallel(fasta_file, jobname, gpu_id):
-    importlib.reload(np)
-
+    suppress_stdout()
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
 
     torch.cuda.set_device(0)
