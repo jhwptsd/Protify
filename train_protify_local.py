@@ -176,7 +176,7 @@ class SeqDataset(torch.utils.data.Dataset):
 
 def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, converter=None, pp_dist=6.8):
 
-    os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
+    #os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
 
     os.makedirs("/ConverterWeights", exist_ok=True)
     os.makedirs('FASTAs', exist_ok=True)
@@ -332,7 +332,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
 
 
 def run_parallel(fasta_file, jobname, gpu_id):
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
+    #os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
     queries, _ = get_queries(fasta_file)
     
     results =  run(
