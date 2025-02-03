@@ -217,11 +217,11 @@ def correct_protein_coords(points, corrector):
 
     # Calculate vector differences between consecutive points
     vectors = points[1:] - points[:-1]
-    norms = torch.norm(vectors, dim=1, keepdim=True, device="cuda")
+    norms = torch.norm(vectors, dim=1, keepdim=True)
     normalized_vectors = vectors / norms
 
     # Apply correction factor
-    corrected_vectors = normalized_vectors * correction_factor
+    corrected_vectors = normalized_vectors.detach() * correction_factor.detach()
 
     corrected_points = torch.zeros_like(points)
     corrected_points[0] = points[0]
