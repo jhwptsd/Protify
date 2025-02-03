@@ -204,13 +204,13 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
     else:
       conv = converter
     conv.train()
-    corrector = [nn.Parameter(torch.tensor(pp_dist, requires_grad=True, dtype=torch.float32)).to(device)] # Can't be bothered to do research, so I'll just regress it
+    corrector = [nn.Parameter(torch.tensor(pp_dist, requires_grad=True, dtype=torch.float32, device=device))] # Can't be bothered to do research, so I'll just regress it
     optimizer = torch.optim.AdamW(conv.parameters(), lr=0.001)
     scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=0.01, steps_per_epoch=len(seqs), epochs=epochs)
     dist_optimizer = torch.optim.AdamW(corrector, lr=0.001)
     dist_scheduler = torch.optim.lr_scheduler.OneCycleLR(dist_optimizer, max_lr=0.01, steps_per_epoch=len(seqs), epochs=epochs)
 
-    dataloader = torch.utils.data.DataLoader(seqs, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=0, pin_memory=True)
+    dataloader = torch.utils.data.DataLoader(seqs, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=8, pin_memory=True)
 
     model_type = "alphafold2"
     download_alphafold_params(model_type, Path("."))
