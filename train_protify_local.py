@@ -1,4 +1,5 @@
 # Import libraries
+import importlib
 import os
 import sys
 from sys import version_info
@@ -333,9 +334,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
 
 
 def run_parallel(fasta_file, jobname, gpu_id):
-
-    import torch
-    import numpy as np
+    importlib.reload(np)
 
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
 
@@ -384,31 +383,31 @@ def run_parallel(fasta_file, jobname, gpu_id):
             break
     return jobname, path
 
+if __name__=="__main__":
+    old_seqs, components, macro_tags = load_data(seq_path, 0, 1645, max_len=100)
+    seqs = SeqDataset(old_seqs)
 
-old_seqs, components, macro_tags = load_data(seq_path, 0, 1645, max_len=100)
-seqs = SeqDataset(old_seqs)
+    try:
+        c = torch.load('/ConverterWeights/converter.pt')
+        corrector = torch.load('/ConverterWeights/corrector.pt')
+    except:
+        c = Converter(max_seq_len=200)
+        corrector = [nn.Parameter(torch.tensor(6.0, requires_grad=True, dtype=torch.float32))]
 
-try:
-   c = torch.load('/ConverterWeights/converter.pt')
-   corrector = torch.load('/ConverterWeights/corrector.pt')
-except:
-   c = Converter(max_seq_len=200)
-   corrector = [nn.Parameter(torch.tensor(6.0, requires_grad=True, dtype=torch.float32))]
+    #c = nn.DataParallel(c, device_ids=[0, 1, 2, 3])
+    #c = torch.compile(c)
+    c = c.to(device)
 
-#c = nn.DataParallel(c, device_ids=[0, 1, 2, 3])
-#c = torch.compile(c)
-c = c.to(device)
+    #try:
+    print("Training...")
+    train(seqs, epochs=10, batch_size=4, max_seq_len=100, converter=c, pp_dist=float(corrector[0]))
+    # except:
+    #     print("Error. Exiting training loop")
+    #     torch.save(c, f'/ConverterWeights/converter.pt')
+    #     torch.save(corrector, f'/ConverterWeights/corrector.pt')
 
-#try:
-print("Training...")
-train(seqs, epochs=10, batch_size=4, max_seq_len=100, converter=c, pp_dist=float(corrector[0]))
-# except:
-#     print("Error. Exiting training loop")
-#     torch.save(c, f'/ConverterWeights/converter.pt')
-#     torch.save(corrector, f'/ConverterWeights/corrector.pt')
-
-torch.save(c, f'/ConverterWeights/converter.pt')
-torch.save(corrector, f'/ConverterWeights/corrector.pt')
+    torch.save(c, f'/ConverterWeights/converter.pt')
+    torch.save(corrector, f'/ConverterWeights/corrector.pt')
 
 
 
