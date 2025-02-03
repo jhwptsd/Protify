@@ -18,8 +18,6 @@ import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.filterwarnings("ignore")
 
-sys.stderr = open(os.devnull, 'w')
-
 from Bio import BiopythonDeprecationWarning
 warnings.simplefilter(action='ignore', category=BiopythonDeprecationWarning)
 
@@ -212,7 +210,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
     dist_optimizer = torch.optim.AdamW(corrector, lr=0.001)
     dist_scheduler = torch.optim.lr_scheduler.OneCycleLR(dist_optimizer, max_lr=0.01, steps_per_epoch=len(seqs), epochs=epochs)
 
-    dataloader = torch.utils.data.DataLoader(seqs, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=8, pin_memory=True)
+    dataloader = torch.utils.data.DataLoader(seqs, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=0, pin_memory=True)
 
     model_type = "alphafold2"
     download_alphafold_params(model_type, Path("."))
@@ -333,6 +331,7 @@ def run_parallel(fasta_file, jobname, gpu_id):
 
 if __name__=="__main__":
 
+ #   sys.stderr = open(os.devnull, 'w')
     mp.set_start_method('spawn', force=True)
 
     old_seqs, components, macro_tags = load_data(seq_path, 0, 1645, max_len=100)
