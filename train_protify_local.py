@@ -3,6 +3,8 @@ import os
 import sys
 from sys import version_info
 
+import multiprocessing as mp
+
 import torch.utils
 import torch.utils.data
 python_version = f"{version_info.major}.{version_info.minor}"
@@ -172,10 +174,12 @@ class SeqDataset(torch.utils.data.Dataset):
    def __getitem__(self, idx):
       return list(self.seqs.values())[idx], list(self.seqs.keys())[idx] # (seq, tag)
 
-def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, converter=None, pp_dist=6.8):
+def train_worker(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, converter=None, pp_dist=6.8):
     os.makedirs("/ConverterWeights", exist_ok=True)
     os.makedirs('FASTAs', exist_ok=True)
-    print("Converter Weights folder generated.")
+
+    num_gpus = torch.cuda.device_count()
+
     try:
         K80_chk = os.popen('nvidia-smi | grep "Tesla K80" | wc -l').read()
     except:
@@ -209,6 +213,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
     download_alphafold_params(model_type, Path("."))
     for epoch in range(epochs):
         for seqs, tags in dataloader:
+            torch.cuda.empty_cache()
             optimizer.zero_grad(set_to_none=True)
             dist_optimizer.zero_grad(set_to_none=True)
             # batch: ([(tag, seq), (tag, seq),...])
@@ -233,30 +238,106 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
             # Write the final sequences to FASTA
             write_fastas(final_seqs)
 
-           
-
-            num_relax = 0
-            # specify how many of the top ranked structures to relax using amber
-            template_mode = "none"
-            #`none` = no template information is used. `pdb100` = detect templates in pdb100 (see [notes](#pdb100)). `custom` - upload and search own templates (PDB or mmCIF format, see [notes](#custom_templates))
-
-            use_cluster_profile = True
-
             loss = []
-            lengths = 0
+            lengths = np.sum(np.array([len(list(final_seqs.values())[i]) for i in range(len(final_seqs))]))
 
-            for i in tqdm(range(len(final_seqs))):
-              torch.cuda.empty_cache()
-              lengths=lengths+len(list(final_seqs.values())[i])
-              with torch.no_grad(), torch.autocast(device_type="cuda"):
-                queries, _ = get_queries(f'FASTAs/{list(final_seqs.keys())[i]}.fasta')
-                jobname = add_hash(list(final_seqs.keys())[i], list(final_seqs.values())[i])
-                results =  run(
+            with mp.Pool(processes=num_gpus) as pool:
+               jobnames = list(final_seqs.keys())
+               fasta_files = [f'FASTAs/{name}.fasta' for name in jobnames]
+               gpu_assignments = [i % num_gpus for i in range(len(fasta_files))]
+
+
+               print("Parallelizing ColabFold...")
+               results = pool.starmap(run_parallel, zip(fasta_files, jobnames, gpu_assignments))
+
+            print("Computing losses...")
+            for jobname, path in results:
+               temp_loss = (protein_to_rna(path, get_structure(jobname, struct_path), corrector[0], tm=tm_score))
+               loss.append(temp_loss)
+               empty_dir(jobname)
+
+
+            # for i in tqdm(range(len(final_seqs))):
+            #   lengths=lengths+len(list(final_seqs.values())[i])
+            #   with torch.no_grad(), torch.autocast(device_type="cuda"):
+            #     queries, _ = get_queries(f'FASTAs/{list(final_seqs.keys())[i]}.fasta')
+            #     jobname = add_hash(list(final_seqs.keys())[i], list(final_seqs.values())[i])
+            #     results =  run(
+            #         queries=queries,
+            #         result_dir=jobname,
+            #         use_templates=USE_TEMPLATES,
+            #         custom_template_path=None,
+            #         num_relax=0,
+            #         msa_mode=msa_mode,
+            #         model_type=model_type,
+            #         num_models=1,
+            #         num_recycles=num_recycles,
+            #         relax_max_iterations=relax_max_iterations,
+            #         recycle_early_stop_tolerance=recycle_early_stop_tolerance,
+            #         num_seeds=num_seeds,
+            #         use_dropout=use_dropout,
+            #         model_order=[1,2,3,4,5],
+            #         is_complex=False,
+            #         data_dir=Path("."),
+            #         keep_existing_results=False,
+            #         rank_by="auto",
+            #         pair_mode=pair_mode,
+            #         pairing_strategy=pairing_strategy,
+            #         stop_at_score=float(100),
+            #         prediction_callback=prediction_callback,
+            #         dpi=100,
+            #         zip_results=False,
+            #         save_all=False,
+            #         max_msa=max_msa,
+            #         use_cluster_profile=True,
+            #         input_features_callback=input_features_callback,
+            #         save_recycles=False,
+            #         use_gpu_relax=True,
+            #     )
+            #     path = ""
+            #     for file in os.listdir(f"{jobname}"):
+            #       if file.endswith(".pdb"):
+            #         path = os.path.join(f"{jobname}", file)
+            #         break
+            #   temp_loss = (protein_to_rna(path, get_structure(list(final_seqs.keys())[i], struct_path), corrector[0], tm=tm_score))
+
+                # Download generated/actual for qualitative comp
+                # shutil.copy(path, "/content/generated.pdb")
+                # shutil.copy(get_structure(list(final_seqs.keys())[i], struct_path), "/content/actual.cif")
+            #   with torch.no_grad():
+            #     loss.append(temp_loss)
+            #     empty_dir(f"{jobname}")
+
+            lengths = lengths/batch_size
+
+            empty_dir("FASTAs", delete=False)
+            loss = torch.mean(torch.stack(loss))
+            print(f"\n\nCurrent Loss: {loss}")
+            print(f"Average Loss per Residue: {loss/lengths}")
+            print(f"Correction factor: {corrector}\n\n")
+            loss.backward()
+            
+            nn.utils.clip_grad_norm_(c.parameters(), 1.0)
+            
+            optimizer.step()
+            dist_optimizer.step()
+            scheduler.step()
+            dist_scheduler.step()
+        torch.save(conv, f'/ConverterWeights/converter_epoch_{epoch}.pt')
+        torch.save(conv.state_dict(), f'/ConverterWeights/converter_params_epoch_{epoch}.pt')
+        torch.save(corrector, f'/ConverterWeights/corrector_epoch_{epoch}.pt')
+
+
+def run_parallel(fasta_file, jobname, gpu_id):
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
+    queries, _ = get_queries(fasta_file)
+    
+    results =  run(
                     queries=queries,
                     result_dir=jobname,
                     use_templates=USE_TEMPLATES,
                     custom_template_path=None,
-                    num_relax=num_relax,
+                    num_relax=0,
                     msa_mode=msa_mode,
                     model_type=model_type,
                     num_models=1,
@@ -278,44 +359,20 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
                     zip_results=False,
                     save_all=False,
                     max_msa=max_msa,
-                    use_cluster_profile=use_cluster_profile,
+                    use_cluster_profile=True,
                     input_features_callback=input_features_callback,
                     save_recycles=False,
                     use_gpu_relax=True,
-                )
-                path = ""
-                for file in os.listdir(f"{jobname}"):
-                  if file.endswith(".pdb"):
-                    path = os.path.join(f"{jobname}", file)
-                    break
-              temp_loss = (protein_to_rna(path, get_structure(list(final_seqs.keys())[i], struct_path), corrector[0], tm=tm_score))
+                    )
+    
+    path = None
+    for file in os.listdir(jobname):
+        if file.endswith(".pdb"):
+            path = os.path.join(jobname, file)
+            break
+    return jobname, path
 
-                # Download generated/actual for qualitative comp
-                # shutil.copy(path, "/content/generated.pdb")
-                # shutil.copy(get_structure(list(final_seqs.keys())[i], struct_path), "/content/actual.cif")
-              with torch.no_grad():
-                loss.append(temp_loss)
-                empty_dir(f"{jobname}")
 
-            lengths = lengths/batch_size
-
-            empty_dir("FASTAs", delete=False)
-            loss = torch.mean(torch.stack(loss))
-            print(f"\n\nCurrent Loss: {loss}")
-            print(f"Average Loss per Residue: {loss/lengths}")
-            print(f"Correction factor: {corrector}\n\n")
-            loss.backward()
-            
-            nn.utils.clip_grad_norm_(c.parameters(), 1.0)
-            
-            optimizer.step()
-            dist_optimizer.step()
-            scheduler.step()
-            dist_scheduler.step()
-        torch.save(conv, f'/ConverterWeights/converter_epoch_{epoch}.pt')
-        torch.save(conv.state_dict(), f'/ConverterWeights/converter_params_epoch_{epoch}.pt')
-        torch.save(corrector, f'/ConverterWeights/corrector_epoch_{epoch}.pt')
-        
 old_seqs, components, macro_tags = load_data(seq_path, 0, 1645, max_len=100)
 seqs = SeqDataset(old_seqs)
 
