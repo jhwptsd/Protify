@@ -333,6 +333,10 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
 
 
 def run_parallel(fasta_file, jobname, gpu_id):
+
+    import torch
+    import numpy as np
+
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
 
     torch.cuda.init()
