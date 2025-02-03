@@ -75,9 +75,9 @@ def empty_dir(path, delete=True):
 
 def RMSD(p1, p2):
     if len(p1)>len(p2):
-      loss = torch.sqrt(torch.mean((p1[:len(p2)] - p2)**2))
+      loss = torch.sqrt(torch.mean(torch.tensor((p1[:len(p2)] - p2)**2)))
     else:
-      loss = torch.sqrt(torch.mean((p1 - p2[:len(p1)])**2))
+      loss = torch.sqrt(torch.mean(torch.tensor((p1 - p2[:len(p1)])**2)))
     return loss
 
 def tm_score(p1, p2, lt):
@@ -226,15 +226,8 @@ def correct_protein_coords(points, corrector):
 
     return corrected_points
 
-from contextlib import contextmanager
-import sys, os
+import sys
 
-@contextmanager
-def suppress_stdout():
-    with open(os.devnull, "w") as devnull:
-        old_stdout = sys.stdout
-        sys.stdout = devnull
-        try:  
-            yield
-        finally:
-            sys.stdout = old_stdout
+class DevNull:
+    def write(self, msg):
+        pass

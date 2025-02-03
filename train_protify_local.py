@@ -333,7 +333,8 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
 
 
 def run_parallel(fasta_file, jobname, gpu_id):
-    suppress_stdout()
+    old = sys.stderr
+    sys.stderr = DevNull()
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
 
     torch.cuda.set_device(0)
@@ -378,6 +379,7 @@ def run_parallel(fasta_file, jobname, gpu_id):
         if file.endswith(".pdb"):
             path = os.path.join(jobname, file)
             break
+    sys.stderr = old
     return jobname, path
 
 if __name__=="__main__":
