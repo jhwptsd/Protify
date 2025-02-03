@@ -17,6 +17,9 @@ os.system("pip install biopython")
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 warnings.filterwarnings("ignore")
+
+sys.stderr = open(os.devnull, 'w')
+
 from Bio import BiopythonDeprecationWarning
 warnings.simplefilter(action='ignore', category=BiopythonDeprecationWarning)
 
@@ -203,13 +206,13 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
     else:
       conv = converter
     conv.train()
-    corrector = [nn.Parameter(torch.tensor(pp_dist, requires_grad=True, dtype=torch.float32))] # Can't be bothered to do research, so I'll just regress it
-    optimizer = torch.optim.AdamW(conv.parameters(), lr=1.5e-4)
+    corrector = [nn.Parameter(torch.tensor(pp_dist, requires_grad=True, dtype=torch.float32)).to(device)] # Can't be bothered to do research, so I'll just regress it
+    optimizer = torch.optim.AdamW(conv.parameters(), lr=0.001)
     scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=0.01, steps_per_epoch=len(seqs), epochs=epochs)
-    dist_optimizer = torch.optim.AdamW(corrector, lr=1.5e-4)
+    dist_optimizer = torch.optim.AdamW(corrector, lr=0.001)
     dist_scheduler = torch.optim.lr_scheduler.OneCycleLR(dist_optimizer, max_lr=0.01, steps_per_epoch=len(seqs), epochs=epochs)
 
-    dataloader = torch.utils.data.DataLoader(seqs, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=0, pin_memory=True)
+    dataloader = torch.utils.data.DataLoader(seqs, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=8, pin_memory=True)
 
     model_type = "alphafold2"
     download_alphafold_params(model_type, Path("."))
@@ -250,14 +253,11 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
                     fasta_files = [f'FASTAs/{name}.fasta' for name in jobnames]
                     gpu_assignments = [i % num_gpus for i in range(len(fasta_files))]
 
-
-                    print("Parallelizing ColabFold...")
                     results = pool.starmap(run_parallel, zip(fasta_files, jobnames, gpu_assignments))
 
                 pool.close()
                 pool.join()
 
-                print("Computing losses...")
                 for jobname, path in results:
                     temp_loss = (protein_to_rna(path, get_structure(jobname, struct_path), corrector[0], tm=tm_score))
                     loss.append(temp_loss)
