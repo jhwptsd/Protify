@@ -4,6 +4,7 @@ import sys
 from sys import version_info
 
 import multiprocessing as mp
+mp.set_start_method('spawn', force=True)
 
 import torch.utils
 import torch.utils.data
@@ -332,7 +333,11 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
 
 
 def run_parallel(fasta_file, jobname, gpu_id):
-    #os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
+
+    torch.cuda.init()
+    torch.cuda.set_device(0)
+
     queries, _ = get_queries(fasta_file)
     
     results =  run(
