@@ -218,7 +218,6 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
     # Set up optimizers and schedulers
     optimizer = torch.optim.AdamW(conv.parameters(), lr=0.001)
     scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=0.01, steps_per_epoch=len(seqs), epochs=epochs)
-    scaler = torch.cuda.amp.GradScaler('cuda')
 
     dataloader = torch.utils.data.DataLoader(seqs, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=8, pin_memory=True)
 
@@ -282,12 +281,11 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
             print(f"Average Loss per Residue: {loss/lengths}")
             loss_pr.append(loss/lengths)
             loss.requires_grad = True
-            scaler.scale(loss).backward()
+            loss.backward()
             
             nn.utils.clip_grad_norm_(c.parameters(), 1.0)
             
-            scaler.step(optimizer)
-            scaler.update()
+            optimizer.step()
             scheduler.step()
             if loss < best_loss:
               best_loss = loss
