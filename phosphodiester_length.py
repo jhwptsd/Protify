@@ -55,8 +55,8 @@ if __name__=="__main__":
          pts = parse_rna(get_structure(list(old_seqs.keys())[i], struct_path))[0].detach().cpu().numpy()
          temp_lengths = []
          for i in range(len(pts)-1):
-             temp_lengths.append(np.linalg.norm(pts[i]-pts[i+1]))
-         temp_lengths = np.mean(np.array(temp_lengths))
+              temp_lengths.append(np.linalg.norm(pts[i]-pts[i+1]))
+        #  temp_lengths = np.mean(np.array(temp_lengths))
          lengths.append(temp_lengths)
     lengths = np.array(lengths)
     print(np.mean(lengths), np.std(lengths))
