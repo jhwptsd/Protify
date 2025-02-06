@@ -289,6 +289,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
             scheduler.step()
             if loss < best_loss:
               best_loss = loss
+              print("New best loss! Saving model...")
               torch.save(conv, f'/ConverterWeights/best_converter.pt')
 
         with open("losses.txt", "w") as txt_file:
