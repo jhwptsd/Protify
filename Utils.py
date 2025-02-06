@@ -87,7 +87,7 @@ def tm_score(p1, p2, lt):
     distance = torch.norm(p1 - p2, dim=-1)
     scaled_dist = (distance / d0(lt)).clamp(min=1e-6)
     loss = torch.mean(1 / (1 + scaled_dist ** 2))
-    return loss
+    return -loss
 
 def parse_rna(path):
     try:
