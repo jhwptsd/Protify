@@ -351,8 +351,6 @@ def run_parallel(fasta_file, jobname, gpu_id):
     return jobname, path
 
 if __name__=="__main__":
-
-    sys.stderr = open(os.devnull, 'w')
     mp.set_start_method('spawn', force=True)
 
     old_seqs, components, macro_tags = load_data(seq_path, 0, 1645, max_len=100)
