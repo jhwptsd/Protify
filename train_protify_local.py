@@ -186,7 +186,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
     loss_pr = []
     best_loss = float('inf')
     # Produce directories for FASTAs and weights
-    os.makedirs("/ConverterWeights", exist_ok=True)
+    os.makedirs("ConverterWeights", exist_ok=True)
     os.makedirs('FASTAs', exist_ok=True)
 
     num_gpus = torch.cuda.device_count()
@@ -362,7 +362,7 @@ if __name__=="__main__":
     seqs = SeqDataset(old_seqs)
 
     try:
-        c = torch.load('/ConverterWeights/converter.pt')
+        c = torch.load('ConverterWeights/converter.pt')
     except:
         c = Converter(max_seq_len=200)
 
@@ -375,7 +375,7 @@ if __name__=="__main__":
     #     print("Error. Exiting training loop")
     #     torch.save(c, f'/ConverterWeights/converter.pt')
 
-    torch.save(c, f'/ConverterWeights/converter.pt')
+    torch.save(c, f'ConverterWeights/converter.pt')
 
 
 
