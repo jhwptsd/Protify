@@ -28,6 +28,15 @@ def get_structure(tag, path):
         path = f"{path}/train_set/{component}/{macro_tag}/{tag}.cif"
         return path
 
+def mean(arr):
+     sum = 0
+     total = 0
+     for i in arr:
+          for j in i:
+            total += 1
+            sum += j
+     return sum/total
+
 if __name__=="__main__":
 
     if not os.path.exists("rna3db-mmcifs"):
@@ -59,4 +68,4 @@ if __name__=="__main__":
         #  temp_lengths = np.mean(np.array(temp_lengths))
          lengths.append(temp_lengths)
     #lengths = np.array(lengths)
-    print(np.mean(lengths), np.std(lengths))
+    print(mean(lengths))
