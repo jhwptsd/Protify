@@ -182,6 +182,9 @@ class SeqDataset(torch.utils.data.Dataset):
 # Good old training function
 def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, converter=None, pp_dist=8.81457219731867):
 
+    losses = []
+    loss_pr = []
+
     # Produce directories for FASTAs and weights
     os.makedirs("/ConverterWeights", exist_ok=True)
     os.makedirs('FASTAs', exist_ok=True)
@@ -274,7 +277,9 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
             empty_dir("FASTAs", delete=False)
             loss = torch.mean(torch.stack(loss))
             print(f"\n\nCurrent Loss: {loss}")
+            losses.append(loss)
             print(f"Average Loss per Residue: {loss/lengths}")
+            loss_pr.append(loss/lengths)
             loss.requires_grad = True
             loss.backward()
             
@@ -282,6 +287,13 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
             
             optimizer.step()
             scheduler.step()
+
+        with open("losses.txt", "w") as txt_file:
+          for line in losses:
+              txt_file.write(" ".join(line) + "\n")
+        with open("losses_pr.txt", "w") as txt_file:
+          for line in loss_pr:
+              txt_file.write(" ".join(line) + "\n")
         torch.save(conv, f'/ConverterWeights/converter_epoch_{epoch}.pt')
         torch.save(conv.state_dict(), f'/ConverterWeights/converter_params_epoch_{epoch}.pt')
 
