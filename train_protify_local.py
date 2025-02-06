@@ -287,6 +287,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
             
             optimizer.step()
             scheduler.step()
+            torch.save(c, f'/ConverterWeights/converter.pt')
 
         with open("losses.txt", "w") as txt_file:
           for line in losses:
