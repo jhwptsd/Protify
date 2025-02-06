@@ -215,9 +215,8 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
       conv = converter
     conv.train()
 
-    # Set up optimizers and schedulers
-    optimizer = torch.optim.AdamW(conv.parameters(), lr=0.001)
-    scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=0.01, steps_per_epoch=len(seqs), epochs=epochs)
+    # Set up optimizers
+    optimizer = torch.optim.AdamW(conv.parameters(), lr=0.01)
 
     dataloader = torch.utils.data.DataLoader(seqs, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=8, pin_memory=True)
 
@@ -286,17 +285,16 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
             nn.utils.clip_grad_norm_(c.parameters(), 1.0)
             
             optimizer.step()
-            scheduler.step()
             if tm_score:
                if loss > best_loss:
                   print("New best loss! Saving model...")
-                  torch.save(conv, f'/ConverterWeights/best_converter.pt')
+                  torch.save(conv, f'/ConverterWeights/converter.pt')
                   best_loss = loss
             else:
               if loss < best_loss:
                 best_loss = loss
                 print("New best loss! Saving model...")
-                torch.save(conv, f'/ConverterWeights/best_converter.pt')
+                torch.save(conv, f'/ConverterWeights/converter.pt')
 
         with open("losses.txt", "w") as txt_file:
           for line in losses:
