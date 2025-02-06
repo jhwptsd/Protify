@@ -58,5 +58,5 @@ if __name__=="__main__":
               temp_lengths.append(np.linalg.norm(pts[i]-pts[i+1]))
         #  temp_lengths = np.mean(np.array(temp_lengths))
          lengths.append(temp_lengths)
-    lengths = np.array(lengths)
+    #lengths = np.array(lengths)
     print(np.mean(lengths), np.std(lengths))
