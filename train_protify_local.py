@@ -154,10 +154,12 @@ recycle_early_stop_tolerance = None if recycle_early_stop_tolerance == "auto" el
 if max_msa == "auto": max_msa = None
 
 #@markdown ### MSA options (custom MSA upload, single sequence, pairing mode)
+# Any option other than "single_sequence" will make a ton of API calls, which is unsustainable
 msa_mode = "single_sequence" #@param ["mmseqs2_uniref_env", "mmseqs2_uniref","single_sequence","custom"]
 pair_mode = "unpaired_paired" #@param ["unpaired_paired","paired","unpaired"] {type:"string"}
 #@markdown - "unpaired_paired" = pair sequences from same species + unpaired MSA, "unpaired" = seperate MSA for each chain, "paired" - only use paired sequences.
 
+# Vestigial functions - not used in this implementation
 def input_features_callback(input_features):
   pass
 
@@ -166,6 +168,7 @@ def prediction_callback(protein_obj, length,
   model_name, relaxed = mode
   pass
 
+# Pytorch Dataset class for sequences
 class SeqDataset(torch.utils.data.Dataset):
    def __init__(self, seqs):
       self.seqs = seqs
@@ -176,13 +179,16 @@ class SeqDataset(torch.utils.data.Dataset):
    def __getitem__(self, idx):
       return list(self.seqs.values())[idx], list(self.seqs.keys())[idx] # (seq, tag)
 
+# Good old training function
 def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, converter=None, pp_dist=6.8):
 
+    # Produce directories for FASTAs and weights
     os.makedirs("/ConverterWeights", exist_ok=True)
     os.makedirs('FASTAs', exist_ok=True)
 
     num_gpus = torch.cuda.device_count()
 
+    # A little more vestigial code
     try:
         K80_chk = os.popen('nvidia-smi | grep "Tesla K80" | wc -l').read()
     except:
@@ -199,12 +205,15 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
     if f"/usr/local/lib/python{python_version}/site-packages/" not in sys.path:
         sys.path.insert(0, f"/usr/local/lib/python{python_version}/site-packages/")
 
+    # Fallback if Converter doesn't exist
     if converter==None:
       conv = Converter(max_seq_len=max_seq_len).to(device)
     else:
       conv = converter
     conv.train()
-    corrector = [nn.Parameter(torch.tensor(pp_dist, requires_grad=True, dtype=torch.float32, device=device))] # Can't be bothered to do research, so I'll just regress it
+
+    # Set up optimizers and schedulers
+    corrector = [nn.Parameter(torch.tensor(pp_dist, requires_grad=True, dtype=torch.float32, device=device))] # Can't find any record of what this value is, so I'll regress it
     optimizer = torch.optim.AdamW(conv.parameters(), lr=0.001)
     scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=0.01, steps_per_epoch=len(seqs), epochs=epochs)
     dist_optimizer = torch.optim.AdamW(corrector, lr=0.001)
@@ -214,6 +223,8 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
 
     model_type = "alphafold2"
     download_alphafold_params(model_type, Path("."))
+    
+    # Training loop
     for epoch in range(epochs):
         for seqs, tags in dataloader:
             torch.cuda.empty_cache()
@@ -246,11 +257,12 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
                 loss = []
                 lengths = np.sum(np.array([len(list(final_seqs.values())[i]) for i in range(len(final_seqs))]))
 
-                with mp.Pool(processes=num_gpus) as pool:
-                    jobnames = list(final_seqs.keys())
-                    fasta_files = [f'FASTAs/{name}.fasta' for name in jobnames]
-                    gpu_assignments = [i % num_gpus for i in range(len(fasta_files))]
+                jobnames = list(final_seqs.keys())
+                fasta_files = [f'FASTAs/{name}.fasta' for name in jobnames]
+                gpu_assignments = [i % num_gpus for i in range(len(fasta_files))]
 
+                # Parallel process amino acid sequences
+                with mp.Pool(processes=num_gpus) as pool:
                     results = pool.starmap(run_parallel, zip(fasta_files, jobnames, gpu_assignments))
 
                 pool.close()
@@ -331,7 +343,7 @@ def run_parallel(fasta_file, jobname, gpu_id):
 
 if __name__=="__main__":
 
- #   sys.stderr = open(os.devnull, 'w')
+    sys.stderr = open(os.devnull, 'w')
     mp.set_start_method('spawn', force=True)
 
     old_seqs, components, macro_tags = load_data(seq_path, 0, 1645, max_len=100)
