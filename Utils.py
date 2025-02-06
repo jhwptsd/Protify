@@ -82,7 +82,7 @@ def RMSD(p1, p2):
 
 def tm_score(p1, p2, lt):
     d0 = lambda l: 1.24 * torch.power(l-15, 3) - 1.8
-    loss = torch.mean(1/(1+torch.pow(torch.abs(torch.norm(p1-p2))/d0(lt),2)))
+    loss = torch.mean(1/(1+torch.pow(torch.abs(torch.norm(torch.tensor(p1-p2)))/d0(lt),2)))
     return loss
 
 def parse_rna(path):
