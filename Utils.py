@@ -209,7 +209,7 @@ def protein_to_rna(protein, rna_path, corrector, tm=False):
         rna_points = rna_points[:len(prot_points)]
     prot_points, rna_points = kabsch_algorithm(prot_points, rna_points)
     if tm:
-        return tm_score(prot_points, rna_points)
+        return tm_score(prot_points, rna_points, len(rna_points))
     return RMSD(prot_points, rna_points)
 
 def correct_protein_coords(points, corrector):
