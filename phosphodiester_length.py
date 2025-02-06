@@ -47,7 +47,7 @@ if __name__=="__main__":
     struct_path = "rna3db-mmcifs"
 
     # Load up the data
-    old_seqs, components, macro_tags = load_data(seq_path, 0, 1645, max_len=100)
+    old_seqs, components, macro_tags = load_data(seq_path, 0, 1645, max_len=200)
     lengths = []
     
     # Parse sequences and get the average phosphodiester bond length
