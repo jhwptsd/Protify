@@ -81,7 +81,7 @@ def RMSD(p1, p2):
     return loss
 
 def tm_score(p1, p2, lt):
-    d0 = lambda l: 1.24 * torch.power(l-15, 3) - 1.8
+    d0 = lambda l: 1.24 * torch.pow(l-15, 3) - 1.8
     loss = torch.mean(1/(1+torch.pow(torch.abs(torch.norm(torch.tensor(p1-p2)))/d0(lt),2)))
     return loss
 
