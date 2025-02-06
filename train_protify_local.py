@@ -227,7 +227,6 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
             optimizer.zero_grad(set_to_none=True)
-            dist_optimizer.zero_grad(set_to_none=True)
             # batch: ([(tag, seq), (tag, seq),...])
 
             # LAYER 1: RNA-AMINO CONVERSION
@@ -336,7 +335,7 @@ def run_parallel(fasta_file, jobname, gpu_id):
 
 if __name__=="__main__":
 
-    #sys.stderr = open(os.devnull, 'w')
+    sys.stderr = open(os.devnull, 'w')
     mp.set_start_method('spawn', force=True)
 
     old_seqs, components, macro_tags = load_data(seq_path, 0, 1645, max_len=100)
