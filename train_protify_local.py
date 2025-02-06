@@ -180,7 +180,7 @@ class SeqDataset(torch.utils.data.Dataset):
       return list(self.seqs.values())[idx], list(self.seqs.keys())[idx] # (seq, tag)
 
 # Good old training function
-def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, converter=None, pp_dist=6.8):
+def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, converter=None, pp_dist=8.81457219731867):
 
     # Produce directories for FASTAs and weights
     os.makedirs("/ConverterWeights", exist_ok=True)
@@ -213,11 +213,8 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
     conv.train()
 
     # Set up optimizers and schedulers
-    corrector = [nn.Parameter(torch.tensor(pp_dist, requires_grad=True, dtype=torch.float32, device=device))] # Can't find any record of what this value is, so I'll regress it
     optimizer = torch.optim.AdamW(conv.parameters(), lr=0.001)
     scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=0.01, steps_per_epoch=len(seqs), epochs=epochs)
-    dist_optimizer = torch.optim.AdamW(corrector, lr=0.001)
-    dist_scheduler = torch.optim.lr_scheduler.OneCycleLR(dist_optimizer, max_lr=0.01, steps_per_epoch=len(seqs), epochs=epochs)
 
     dataloader = torch.utils.data.DataLoader(seqs, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=8, pin_memory=True)
 
@@ -269,7 +266,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
                 pool.join()
 
                 for jobname, path in results:
-                    temp_loss = (protein_to_rna(path, get_structure(jobname, struct_path), corrector[0], tm=tm_score))
+                    temp_loss = (protein_to_rna(path, get_structure(jobname, struct_path), pp_dist, tm=tm_score))
                     loss.append(temp_loss)
                     empty_dir(jobname)
 
@@ -279,19 +276,15 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
             loss = torch.mean(torch.stack(loss))
             print(f"\n\nCurrent Loss: {loss}")
             print(f"Average Loss per Residue: {loss/lengths}")
-            print(f"Correction factor: {corrector}\n\n")
             loss.requires_grad = True
             loss.backward()
             
             nn.utils.clip_grad_norm_(c.parameters(), 1.0)
             
             optimizer.step()
-            dist_optimizer.step()
             scheduler.step()
-            dist_scheduler.step()
         torch.save(conv, f'/ConverterWeights/converter_epoch_{epoch}.pt')
         torch.save(conv.state_dict(), f'/ConverterWeights/converter_params_epoch_{epoch}.pt')
-        torch.save(corrector, f'/ConverterWeights/corrector_epoch_{epoch}.pt')
 
 
 def run_parallel(fasta_file, jobname, gpu_id):
@@ -351,23 +344,19 @@ if __name__=="__main__":
 
     try:
         c = torch.load('/ConverterWeights/converter.pt')
-        corrector = torch.load('/ConverterWeights/corrector.pt')
     except:
         c = Converter(max_seq_len=200)
-        corrector = [nn.Parameter(torch.tensor(6.0, requires_grad=True, dtype=torch.float32))]
 
     c = c.to(device)
 
     #try:
     print("Training...")
-    train(seqs, epochs=10, batch_size=4, max_seq_len=100, converter=c, pp_dist=float(corrector[0]))
+    train(seqs, epochs=10, batch_size=4, max_seq_len=100, converter=c)
     # except:
     #     print("Error. Exiting training loop")
     #     torch.save(c, f'/ConverterWeights/converter.pt')
-    #     torch.save(corrector, f'/ConverterWeights/corrector.pt')
 
     torch.save(c, f'/ConverterWeights/converter.pt')
-    torch.save(corrector, f'/ConverterWeights/corrector.pt')
 
 
 

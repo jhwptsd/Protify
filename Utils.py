@@ -213,7 +213,7 @@ def protein_to_rna(protein, rna_path, corrector, tm=False):
     return RMSD(prot_points, rna_points)
 
 def correct_protein_coords(points, corrector):
-    correction_factor = corrector.unsqueeze(0)
+    correction_factor = corrector
 
     # Calculate vector differences between consecutive points
     vectors = points[1:] - points[:-1]
@@ -221,7 +221,7 @@ def correct_protein_coords(points, corrector):
     normalized_vectors = vectors / norms
 
     # Apply correction factor
-    corrected_vectors = normalized_vectors.detach().cpu() * correction_factor.detach().cpu()
+    corrected_vectors = normalized_vectors.detach().cpu() * correction_factor
 
     corrected_points = torch.zeros_like(points)
     corrected_points[0] = points[0]
