@@ -184,7 +184,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
 
     losses = []
     loss_pr = []
-
+    best_loss = float('inf')
     # Produce directories for FASTAs and weights
     os.makedirs("/ConverterWeights", exist_ok=True)
     os.makedirs('FASTAs', exist_ok=True)
@@ -218,6 +218,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
     # Set up optimizers and schedulers
     optimizer = torch.optim.AdamW(conv.parameters(), lr=0.001)
     scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=0.01, steps_per_epoch=len(seqs), epochs=epochs)
+    scaler = torch.cuda.amp.GradScaler('cuda')
 
     dataloader = torch.utils.data.DataLoader(seqs, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=8, pin_memory=True)
 
@@ -230,22 +231,22 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
             torch.cuda.empty_cache()
             torch.cuda.synchronize()
             optimizer.zero_grad(set_to_none=True)
-            # batch: ([(tag, seq), (tag, seq),...])
-
-            # LAYER 1: RNA-AMINO CONVERSION
-            processed_seqs = [torch.tensor(np.transpose(encode_rna(s), (0, 1)), dtype=torch.float32) for s in seqs] # (batch, seq, base)
-            lengths = [len(s) for s in processed_seqs]
-
-            # Pad sequences
-            for i in range(len(processed_seqs)):
-               m = nn.ZeroPad2d((0,0,0,max_seq_len-lengths[i]))
-               processed_seqs[i] = m(processed_seqs[i])
-            processed_seqs = torch.stack(processed_seqs).to(device)
-
-            # Send sequences through the converter
-            aa_seqs = conv(processed_seqs) # (seq, batch, aa)
 
             with torch.autocast(device_type="cuda"):
+                # batch: ([(tag, seq), (tag, seq),...])
+
+                # LAYER 1: RNA-AMINO CONVERSION
+                processed_seqs = [torch.tensor(np.transpose(encode_rna(s), (0, 1)), dtype=torch.float32) for s in seqs] # (batch, seq, base)
+                lengths = [len(s) for s in processed_seqs]
+
+                # Pad sequences
+                for i in range(len(processed_seqs)):
+                  m = nn.ZeroPad2d((0,0,0,max_seq_len-lengths[i]))
+                  processed_seqs[i] = m(processed_seqs[i])
+                processed_seqs = torch.stack(processed_seqs).to(device)
+
+                # Send sequences through the converter
+                aa_seqs = conv(processed_seqs) # (seq, batch, aa)
                 # Reconvert to letter representation
                 aa_seqs_strings = [''.join(AA_DICT[aa_seqs[i][n]] for n in range(0, lengths[i])) for i in range(len(aa_seqs))]
                 final_seqs = dict(zip(tags, aa_seqs_strings))
@@ -281,13 +282,16 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
             print(f"Average Loss per Residue: {loss/lengths}")
             loss_pr.append(loss/lengths)
             loss.requires_grad = True
-            loss.backward()
+            scaler.scale(loss).backward()
             
             nn.utils.clip_grad_norm_(c.parameters(), 1.0)
             
-            optimizer.step()
+            scaler.step(optimizer)
+            scaler.update()
             scheduler.step()
-            torch.save(c, f'/ConverterWeights/converter.pt')
+            if loss < best_loss:
+              best_loss = loss
+              torch.save(conv, f'/ConverterWeights/best_converter.pt')
 
         with open("losses.txt", "w") as txt_file:
           for line in losses:
@@ -363,7 +367,7 @@ if __name__=="__main__":
 
     #try:
     print("Training...")
-    train(seqs, epochs=10, batch_size=4, max_seq_len=100, converter=c)
+    train(seqs, epochs=10, batch_size=4, max_seq_len=100, converter=c, tm_score=True)
     # except:
     #     print("Error. Exiting training loop")
     #     torch.save(c, f'/ConverterWeights/converter.pt')
