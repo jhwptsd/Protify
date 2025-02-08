@@ -189,8 +189,6 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
     os.makedirs("ConverterWeights", exist_ok=True)
     os.makedirs('FASTAs', exist_ok=True)
 
-    num_gpus = torch.cuda.device_count()
-
     # A little more vestigial code
     try:
         K80_chk = os.popen('nvidia-smi | grep "Tesla K80" | wc -l').read()
@@ -219,6 +217,8 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
     optimizer = torch.optim.AdamW(conv.parameters(), lr=0.01)
 
     dataloader = torch.utils.data.DataLoader(seqs, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=8, pin_memory=True)
+
+    loss_fn = ProteinFoldLoss(pp_dist)
 
     model_type = "alphafold2"
     download_alphafold_params(model_type, Path("."))
@@ -252,20 +252,8 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
                 # Write the final sequences to FASTA
                 write_fastas(final_seqs)
 
-                lengths = sum(len(seq) for seq in final_seqs.values())
-
-                jobnames = list(final_seqs.keys())
-                fasta_files = [f'FASTAs/{name}.fasta' for name in jobnames]
-                gpu_assignments = np.arange(len(fasta_files)) % num_gpus
-
-                # Parallel process amino acid sequences
-                with mp.Pool(processes=num_gpus) as pool:
-                    results = pool.starmap(run_parallel, zip(fasta_files, jobnames, gpu_assignments))
-
-                loss = torch.stack([
-                protein_to_rna(path, get_structure(jobname, struct_path), pp_dist, tm=tm_score) for jobname, path in results])
-                for jobname, _ in results:
-                    empty_dir(jobname)
+                # LAYER 2: PROTEIN FOLDING
+                lengths, loss = loss_fn(final_seqs)
 
             lengths = torch.tensor(lengths / batch_size, dtype=torch.float32)
             losses.append(loss)
@@ -300,6 +288,32 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
               txt_file.write(" ".join(line) + "\n")
         torch.save(conv, f'ConverterWeights/converter_epoch_{epoch}.pt')
         torch.save(conv.state_dict(), f'ConverterWeights/converter_params_epoch_{epoch}.pt')
+
+
+class ProteinFoldLoss(nn.Module):
+   def __init__(self, pp_dist):
+      super(ProteinFoldLoss, self).__init__()
+      self.pp_dist = pp_dist
+  
+   def forward(self, final_seqs):
+      num_gpus = torch.cuda.device_count()
+      lengths = sum(len(seq) for seq in final_seqs.values())
+
+      jobnames = list(final_seqs.keys())
+      fasta_files = [f'FASTAs/{name}.fasta' for name in jobnames]
+      gpu_assignments = np.arange(len(fasta_files)) % num_gpus
+
+      # Parallel process amino acid sequences
+      with mp.Pool(processes=num_gpus) as pool:
+          results = pool.starmap(run_parallel, zip(fasta_files, jobnames, gpu_assignments))
+
+      loss = torch.stack([
+      protein_to_rna(path, get_structure(jobname, struct_path), self.pp_dist, tm=tm_score) for jobname, path in results])
+      for jobname, _ in results:
+          empty_dir(jobname)
+
+      return lengths, loss.mean()
+        
 
 
 def run_parallel(fasta_file, jobname, gpu_id):

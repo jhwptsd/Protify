@@ -4,7 +4,7 @@ import math
 
 # Converter class - essentially just a Transformer model
 class Converter(nn.Module):
-    def __init__(self, max_seq_len=150, d_model=64, nhead=8, num_layers=6, dim_feedforward=256, dropout=0.1):
+    def __init__(self, max_seq_len=150, d_model=64, nhead=4, num_layers=3, dim_feedforward=128, dropout=0.1):
         super(Converter, self).__init__()
 
         self.d_model = d_model
