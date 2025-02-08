@@ -284,13 +284,13 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
             if tm_score:
                if loss > best_loss:
                   print("New best loss! Saving model...")
-                  torch.save(conv, f'/ConverterWeights/converter.pt')
+                  torch.save(conv, f'ConverterWeights/converter.pt')
                   best_loss = loss
             else:
               if loss < best_loss:
                 best_loss = loss
                 print("New best loss! Saving model...")
-                torch.save(conv, f'/ConverterWeights/converter.pt')
+                torch.save(conv, f'ConverterWeights/converter.pt')
 
         with open("losses.txt", "w") as txt_file:
           for line in losses:
@@ -298,8 +298,8 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
         with open("losses_pr.txt", "w") as txt_file:
           for line in loss_pr:
               txt_file.write(" ".join(line) + "\n")
-        torch.save(conv, f'/ConverterWeights/converter_epoch_{epoch}.pt')
-        torch.save(conv.state_dict(), f'/ConverterWeights/converter_params_epoch_{epoch}.pt')
+        torch.save(conv, f'ConverterWeights/converter_epoch_{epoch}.pt')
+        torch.save(conv.state_dict(), f'ConverterWeights/converter_params_epoch_{epoch}.pt')
 
 
 def run_parallel(fasta_file, jobname, gpu_id):
