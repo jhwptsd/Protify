@@ -41,18 +41,8 @@ def load_data(path, a=0, b=float('inf'), max_len=150):
     return seqs, components, macro_tags
 
 def encode_rna(seq):
-    # Convert RNA sequence to nums to feed into Converter
-    out = []
-    for i in seq:
-        if i=="A":
-            out.append([1,0,0,0])
-        elif i=="U":
-            out.append([0,1,0,0])
-        elif i=="C":
-            out.append([0,0,1,0])
-        elif i=="G":
-            out.append([0,0,0,1])
-    return out
+    mapping = {'A': [1, 0, 0, 0], 'U': [0, 1, 0, 0], 'C': [0, 0, 1, 0], 'G': [0, 0, 0, 1]}
+    return torch.tensor([mapping[i] for i in seq], dtype=torch.float32)
 
 def write_fastas(seqs):
     # Write a dict of {tag: seq} to as many FASTA files as needed
@@ -74,20 +64,15 @@ def empty_dir(path, delete=True):
       os.rmdir(path)
 
 def RMSD(p1, p2):
-    if len(p1)>len(p2):
-      loss = torch.sqrt(torch.mean(torch.tensor((p1[:len(p2)] - p2)**2)))
-    else:
-      loss = torch.sqrt(torch.mean(torch.tensor((p1 - p2[:len(p1)])**2)))
-    return loss
+    p1, p2 = torch.as_tensor(p1, dtype=torch.float32), torch.as_tensor(p2, dtype=torch.float32)
+    min_len = min(len(p1), len(p2))
+    return torch.sqrt(torch.mean((p1[:min_len] - p2[:min_len])**2))
 
 def tm_score(p1, p2, lt):
-    p1 = torch.tensor(p1)
-    p2 = torch.tensor(p2)
-    d0 = lambda l: 1.24 * np.cbrt(l-15) - 1.8
+    p1, p2 = torch.as_tensor(p1, dtype=torch.float32), torch.as_tensor(p2, dtype=torch.float32)
+    d0 = 1.24 * (lt ** (1/3)) - 1.8
     distance = torch.norm(p1 - p2, dim=-1)
-    scaled_dist = (distance / d0(lt)).clamp(min=1e-6)
-    loss = torch.mean(1 / (1 + scaled_dist ** 2))
-    return -loss
+    return -torch.mean(1 / (1 + (distance / d0).pow(2)))
 
 def parse_rna(path):
     try:
@@ -130,8 +115,7 @@ def parse_rna(path):
                 v2 = angle_points[-3]-angle_points[-2]
                 norms.append(np.cross(v1, v2))
                 angle_points = []
-        points = np.array(points)
-        norms = np.array(norms)
+
         return torch.tensor(points, requires_grad=True, dtype=torch.float32), torch.tensor(norms, requires_grad=True, dtype=torch.float32)
 
     except Exception as e:
@@ -177,8 +161,6 @@ def parse_protein(path):
                 norms.append(np.cross(v1, v2))
                 angle_points = []
 
-        points = np.array(points)
-        norms = np.array(norms)
         return torch.tensor(points, requires_grad=True), torch.tensor(norms, requires_grad=True)
 
     except Exception as e:
@@ -186,21 +168,17 @@ def parse_protein(path):
         sys.exit(1)
      
 def kabsch_algorithm(P, Q):
-    P_original = Q.detach().numpy()
-    Q_aligned = P.detach().numpy()
-    Q = Q.detach().numpy()
-    P = P.detach().numpy()
+    P, Q = torch.as_tensor(P, dtype=torch.float32), torch.as_tensor(Q, dtype=torch.float32)
     
     H = P.T @ Q
-    U, S, Vt = np.linalg.svd(H)
+    U, S, Vt = torch.linalg.svd(H)
     R = Vt.T @ U.T
     
-    if np.linalg.det(R) < 0:
+    if torch.det(R) < 0:
         Vt[-1, :] *= -1
         R = Vt.T @ U.T
-        
-    Q_aligned = Q_aligned @ R
-    return P_original, Q_aligned
+    
+    return P, Q @ R
      
    
 def protein_to_rna(protein, rna_path, corrector, tm=False):
@@ -217,18 +195,9 @@ def protein_to_rna(protein, rna_path, corrector, tm=False):
     return RMSD(prot_points, rna_points)
 
 def correct_protein_coords(points, corrector):
-    correction_factor = corrector
-
-    # Calculate vector differences between consecutive points
     vectors = points[1:] - points[:-1]
     norms = torch.norm(vectors, dim=1, keepdim=True)
     normalized_vectors = vectors / norms
-
-    # Apply correction factor
-    corrected_vectors = normalized_vectors.detach().cpu() * correction_factor
-
-    corrected_points = torch.zeros_like(points)
-    corrected_points[0] = points[0]
-    corrected_points[1:] = points[:-1] + corrected_vectors
-
+    corrected_vectors = normalized_vectors * corrector
+    corrected_points = torch.cat([points[:1], points[:-1] + corrected_vectors], dim=0)
     return corrected_points

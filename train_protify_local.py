@@ -246,37 +246,33 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
                 # Send sequences through the converter
                 aa_seqs = conv(processed_seqs) # (seq, batch, aa)
                 # Reconvert to letter representation
-                aa_seqs_strings = [''.join(AA_DICT[aa_seqs[i][n]] for n in range(0, lengths[i])) for i in range(len(aa_seqs))]
+                aa_seqs_strings = ["".join(map(AA_DICT.get, aa_seq[:length])) for aa_seq, length in zip(aa_seqs, lengths)]
                 final_seqs = dict(zip(tags, aa_seqs_strings))
 
                 # Write the final sequences to FASTA
                 write_fastas(final_seqs)
 
-                loss = []
-                lengths = np.sum(np.array([len(list(final_seqs.values())[i]) for i in range(len(final_seqs))]))
+                lengths = sum(len(seq) for seq in final_seqs.values())
 
                 jobnames = list(final_seqs.keys())
                 fasta_files = [f'FASTAs/{name}.fasta' for name in jobnames]
-                gpu_assignments = [i % num_gpus for i in range(len(fasta_files))]
+                gpu_assignments = np.arange(len(fasta_files)) % num_gpus
 
                 # Parallel process amino acid sequences
                 with mp.Pool(processes=num_gpus) as pool:
                     results = pool.starmap(run_parallel, zip(fasta_files, jobnames, gpu_assignments))
 
-                pool.close()
-                pool.join()
-
-                for jobname, path in results:
-                    temp_loss = (protein_to_rna(path, get_structure(jobname, struct_path), pp_dist, tm=tm_score))
-                    loss.append(temp_loss)
+                loss = torch.stack([
+                protein_to_rna(path, get_structure(jobname, struct_path), pp_dist, tm=tm_score) for jobname, path in results])
+                for jobname, _ in results:
                     empty_dir(jobname)
 
-            lengths = lengths/batch_size
+            lengths = torch.tensor(lengths / batch_size, dtype=torch.float32)
+            losses.append(loss)
 
             empty_dir("FASTAs", delete=False)
-            loss = torch.mean(torch.stack(loss))
+            loss = torch.mean(loss)
             print(f"\n\nCurrent Loss: {loss}")
-            losses.append(loss)
             print(f"Average Loss per Residue: {loss/lengths}")
             loss_pr.append(loss/lengths)
             loss.requires_grad = True
