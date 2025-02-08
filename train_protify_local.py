@@ -214,7 +214,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
     conv.train()
 
     # Set up optimizers
-    optimizer = torch.optim.AdamW(conv.parameters(), lr=0.01)
+    optimizer = torch.optim.AdamW(conv.parameters(), lr=0.001)
 
     dataloader = torch.utils.data.DataLoader(seqs, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=8, pin_memory=True)
 
@@ -225,9 +225,9 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
     
     # Training loop
     for epoch in range(epochs):
+        torch.cuda.empty_cache()
+        torch.cuda.synchronize()
         for seqs, tags in dataloader:
-            torch.cuda.empty_cache()
-            torch.cuda.synchronize()
             optimizer.zero_grad(set_to_none=True)
 
             with torch.autocast(device_type="cuda"):
@@ -235,7 +235,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
 
                 # LAYER 1: RNA-AMINO CONVERSION
                 processed_seqs = [torch.tensor(np.transpose(encode_rna(s), (0, 1)), dtype=torch.float32) for s in seqs] # (batch, seq, base)
-                lengths = [len(s) for s in processed_seqs]
+                lengths = sum([len(s) for s in processed_seqs])
 
                 # Pad sequences
                 for i in range(len(processed_seqs)):
@@ -253,20 +253,18 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
                 write_fastas(final_seqs)
 
                 # LAYER 2: PROTEIN FOLDING
-                lengths, loss = loss_fn(final_seqs)
+                loss = loss_fn(final_seqs)
 
             lengths = torch.tensor(lengths / batch_size, dtype=torch.float32)
             losses.append(loss)
 
             empty_dir("FASTAs", delete=False)
-            loss = torch.mean(loss)
             print(f"\n\nCurrent Loss: {loss}")
             print(f"Average Loss per Residue: {loss/lengths}")
             loss_pr.append(loss/lengths)
-            loss.requires_grad = True
             loss.backward()
             
-            nn.utils.clip_grad_norm_(c.parameters(), 1.0)
+            nn.utils.clip_grad_norm_(conv.parameters(), 1.0)
             
             optimizer.step()
             if tm_score:
@@ -297,7 +295,6 @@ class ProteinFoldLoss(nn.Module):
   
    def forward(self, final_seqs):
       num_gpus = torch.cuda.device_count()
-      lengths = sum(len(seq) for seq in final_seqs.values())
 
       jobnames = list(final_seqs.keys())
       fasta_files = [f'FASTAs/{name}.fasta' for name in jobnames]
@@ -312,14 +309,12 @@ class ProteinFoldLoss(nn.Module):
       for jobname, _ in results:
           empty_dir(jobname)
 
-      return lengths, loss.mean()
+      return loss.mean()
         
 
 
 def run_parallel(fasta_file, jobname, gpu_id):
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_id)
-
-    torch.cuda.set_device(0)
 
     queries, _ = get_queries(fasta_file)
     

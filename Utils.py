@@ -100,8 +100,7 @@ def parse_rna(path):
             y = float(y)
             z = float(z)
 
-            point = np.add(np.array([x,y,z]), correction_factor)
-
+            point = torch.tensor([x, y, z], dtype=torch.float32, requires_grad=True) + correction_factor
             if atom == "P":
               if (correction_factor==torch.zeros(3)).all():
                 correction_factor = torch.tensor([-x, -y, -z])
@@ -113,7 +112,7 @@ def parse_rna(path):
                 angle_points.append(point)
                 v1 = angle_points[-1]-angle_points[-2]
                 v2 = angle_points[-3]-angle_points[-2]
-                norms.append(np.cross(v1, v2))
+                norms.append(torch.cross(v1, v2))
                 angle_points = []
 
         return torch.tensor(points, requires_grad=True, dtype=torch.float32), torch.tensor(norms, requires_grad=True, dtype=torch.float32)
@@ -146,7 +145,7 @@ def parse_protein(path):
             y = float(y)
             z = float(z)
 
-            point = np.add(np.array([x,y,z]), correction_factor)
+            point = torch.tensor([x, y, z], dtype=torch.float32, requires_grad=True) + correction_factor
             if atom == "CA":
               if (correction_factor==torch.zeros(3)).all():
                 correction_factor = torch.tensor([-x, -y, -z])
@@ -158,7 +157,7 @@ def parse_protein(path):
                 angle_points.append(point)
                 v1 = angle_points[-1]-angle_points[-2]
                 v2 = angle_points[-3]-angle_points[-2]
-                norms.append(np.cross(v1, v2))
+                norms.append(torch.cross(v1, v2))
                 angle_points = []
 
         return torch.tensor(points, requires_grad=True), torch.tensor(norms, requires_grad=True)
@@ -197,7 +196,7 @@ def protein_to_rna(protein, rna_path, corrector, tm=False):
 def correct_protein_coords(points, corrector):
     vectors = points[1:] - points[:-1]
     norms = torch.norm(vectors, dim=1, keepdim=True)
-    normalized_vectors = vectors / norms
+    normalized_vectors = vectors / (norms+1e-8)
     corrected_vectors = normalized_vectors * corrector
     corrected_points = torch.cat([points[:1], points[:-1] + corrected_vectors], dim=0)
     return corrected_points
