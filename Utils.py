@@ -6,6 +6,31 @@ import numpy as np
 import sys
 from Bio.PDB import *
 
+# Index to amino acid dictionary
+# Largely arbitrary, but must stay consistent for any given converter
+AA_DICT = {
+    0: "A",
+    1: "R",
+    2: "N",
+    3: "D",
+    4: "C",
+    5: "Q",
+    6: "E",
+    7: "G",
+    8: "H",
+    9: "I",
+    10: "L",
+    11: "K",
+    12: "M",
+    13: "F",
+    14: "P",
+    15: "S",
+    16: "T",
+    17: "W",
+    18: "Y",
+    19: "V"
+}
+
 def add_hash(x,y):
   return x+"_"+hashlib.sha1(y.encode()).hexdigest()[:5]
 
@@ -122,9 +147,10 @@ def parse_protein(path):
     for model in structure:
         for chain in model:
             for residue in chain:
-                for atom in residue:
-                    vector = atom.get_vector()
-                    data.append((vector[0], vector[1], vector[2], atom.get_name()))
+                if residue in AA_DICT:
+                    for atom in residue:
+                        vector = atom.get_vector()
+                        data.append((vector[0], vector[1], vector[2], atom.get_name()))
 
 
     points = []
