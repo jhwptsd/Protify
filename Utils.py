@@ -108,7 +108,7 @@ def parse_rna(path):
     for model in structure:
         for chain in model:
             for residue in chain:
-                if residue.get_resname().strip() in nucleotides:  # Ensure proper nucleotide matching
+                if residue.get_resname().strip() in nucleotides:
                     for atom in residue:
                         vector = atom.get_vector()
                         data.append((vector[0], vector[1], vector[2], atom.get_name().strip()))
@@ -117,34 +117,32 @@ def parse_rna(path):
     angle_points = []
     norms = []
 
-    correction_factor = torch.zeros(3, dtype=torch.float32, requires_grad=False)
+    correction_factor = torch.zeros(3, dtype=torch.float32, requires_grad=True)
 
     for x, y, z, atom in data:
-        x = float(x)
-        y = float(y)
-        z = float(z)
-
         point = torch.tensor([x, y, z], dtype=torch.float32, requires_grad=True) + correction_factor
 
         if atom == "P":
-            if torch.all(correction_factor == 0):  # Fix correction factor check
-                correction_factor = torch.tensor([-x, -y, -z], dtype=torch.float32)
+            if torch.all(correction_factor == 0): 
+                correction_factor.copy_(-point)
             points.append(point)
             angle_points.append(point)
-        
-        elif atom in {"\"C1\'\"", "\"C4\'\""}:  # Fix incorrect atom name matching
+
+        elif atom in {"\"C1\'\"", "\"C4\'\""}:
             angle_points.append(point)
 
-            if len(angle_points) >= 3:  # Ensure at least 3 points before calculation
+            if len(angle_points) >= 3:
                 v1 = angle_points[-1] - angle_points[-2]
                 v2 = angle_points[-3] - angle_points[-2]
                 norms.append(torch.cross(v1, v2))
-                angle_points = []  # Reset angle_points after computing
+
+                angle_points = [] 
 
     return (
-        torch.stack(points, dim=0) if points else torch.empty(0, 3),  # Ensure non-empty tensor
-        torch.stack(norms, dim=0) if norms else torch.empty(0, 3)
+        torch.stack(points, dim=0) if points else torch.empty(0, 3, requires_grad=True),
+        torch.stack(norms, dim=0) if norms else torch.empty(0, 3, requires_grad=True)
     )
+
 def parse_protein(path):
     parser = PDBParser(QUIET=True)
     structure = parser.get_structure("Protein", path)
@@ -161,33 +159,32 @@ def parse_protein(path):
     angle_points = []
     norms = []
 
-    correction_factor = torch.zeros(3, dtype=torch.float32, requires_grad=False)
-    
-    for x, y, z, atom in data:
-        x = float(x)
-        y = float(y)
-        z = float(z)
+    correction_factor = torch.zeros(3, dtype=torch.float32, requires_grad=True)
 
+    for x, y, z, atom in data:
         point = torch.tensor([x, y, z], dtype=torch.float32, requires_grad=True) + correction_factor
-        
+
         if atom == "CA":
-            print("adding...")
-            if torch.all(correction_factor == torch.zeros(3)):
-                correction_factor = torch.tensor([-x, -y, -z], dtype=torch.float32)
+            if torch.all(correction_factor == 0):
+                correction_factor.copy_(-point)
             points.append(point)
             angle_points.append(point)
 
         elif atom in {"N", "C"}:
-            print("adding...")
             angle_points.append(point)
 
-            if len(angle_points) >= 3: 
+            if len(angle_points) >= 3:
                 v1 = angle_points[-1] - angle_points[-2]
                 v2 = angle_points[-3] - angle_points[-2]
                 norms.append(torch.cross(v1, v2))
-                angle_points = []
 
-    return torch.stack(points, dim=0), torch.stack(norms, dim=0) if norms else torch.empty(0, 3)
+                angle_points = [] 
+
+    return (
+        torch.stack(points, dim=0) if points else torch.empty(0, 3, requires_grad=True),
+        torch.stack(norms, dim=0) if norms else torch.empty(0, 3, requires_grad=True)
+    )
+
 
      
 def kabsch_algorithm(P, Q):
