@@ -100,18 +100,18 @@ def tm_score(p1, p2, lt):
     return -torch.mean(1 / (1 + (distance / d0).pow(2)))
 
 def parse_rna(path):
-    parser = MMCIFParser()
+    parser = MMCIFParser(QUIET=True)
     structure = parser.get_structure("RNA", path)
     data = []
     nucleotides = {'A', 'U', 'C', 'G'}
+
     for model in structure:
         for chain in model:
             for residue in chain:
-                if residue.get_resname() in nucleotides:
+                if residue.get_resname().strip() in nucleotides:  # Ensure proper nucleotide matching
                     for atom in residue:
                         vector = atom.get_vector()
-                        data.append((vector[0], vector[1], vector[2], atom.get_name()))
-
+                        data.append((vector[0], vector[1], vector[2], atom.get_name().strip()))
 
     points = []
     angle_points = []
@@ -125,25 +125,26 @@ def parse_rna(path):
         z = float(z)
 
         point = torch.tensor([x, y, z], dtype=torch.float32, requires_grad=True) + correction_factor
+
         if atom == "P":
-            if (correction_factor==torch.zeros(3)).all():
-                correction_factor = torch.tensor([-x, -y, -z])
-                points.append(point)
+            if torch.all(correction_factor == 0):  # Fix correction factor check
+                correction_factor = torch.tensor([-x, -y, -z], dtype=torch.float32)
+            points.append(point)
             angle_points.append(point)
-        elif atom == "\"C1'\"":
+        
+        elif atom in {"\"C1\'\"", "\"C4\'\""}:  # Fix incorrect atom name matching
             angle_points.append(point)
-        elif atom == "\"C4'\"":
-            angle_points.append(point)
-            v1 = angle_points[-1]-angle_points[-2]
-            v2 = angle_points[-3]-angle_points[-2]
-            norms.append(torch.cross(v1, v2))
-            angle_points = []
 
-    return torch.tensor(points, requires_grad=True, dtype=torch.float32), torch.tensor(norms, requires_grad=True, dtype=torch.float32)
+            if len(angle_points) >= 3:  # Ensure at least 3 points before calculation
+                v1 = angle_points[-1] - angle_points[-2]
+                v2 = angle_points[-3] - angle_points[-2]
+                norms.append(torch.cross(v1, v2))
+                angle_points = []  # Reset angle_points after computing
 
-import torch
-from Bio.PDB import PDBParser
-
+    return (
+        torch.stack(points, dim=0) if points else torch.empty(0, 3),  # Ensure non-empty tensor
+        torch.stack(norms, dim=0) if norms else torch.empty(0, 3)
+    )
 def parse_protein(path):
     parser = PDBParser(QUIET=True)
     structure = parser.get_structure("Protein", path)
