@@ -147,7 +147,7 @@ def parse_protein(path):
     for model in structure:
         for chain in model:
             for residue in chain:
-                if residue in AA_DICT:
+                #if residue in AA_DICT:
                     for atom in residue:
                         vector = atom.get_vector()
                         data.append((vector[0], vector[1], vector[2], atom.get_name()))
