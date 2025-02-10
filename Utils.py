@@ -99,11 +99,14 @@ def tm_score(p1, p2, lt):
     distance = torch.norm(p1 - p2, dim=-1)
     return -torch.mean(1 / (1 + (distance / d0).pow(2)))
 
-def parse_rna(path):
+def parse_rna(path, return_skips=False):
     parser = MMCIFParser(QUIET=True)
     structure = parser.get_structure("RNA", path)
     data = []
     nucleotides = {'A', 'U', 'C', 'G'}
+
+    skips = []
+    count = 0
 
     for model in structure:
         for chain in model:
@@ -112,6 +115,9 @@ def parse_rna(path):
                     for atom in residue:
                         vector = atom.get_vector()
                         data.append((vector[0], vector[1], vector[2], atom.get_name().strip()))
+                else:
+                    skips.append(count)
+                    count += 1
 
     points = []
     angle_points = []
@@ -137,7 +143,12 @@ def parse_rna(path):
                 norms.append(torch.cross(v1, v2))
 
                 angle_points = [] 
-
+    if return_skips:
+        return (
+            torch.stack(points, dim=0) if points else torch.empty(0, 3, requires_grad=True),
+            torch.stack(norms, dim=0) if norms else torch.empty(0, 3, requires_grad=True),
+            skips
+        )
     return (
         torch.stack(points, dim=0) if points else torch.empty(0, 3, requires_grad=True),
         torch.stack(norms, dim=0) if norms else torch.empty(0, 3, requires_grad=True)

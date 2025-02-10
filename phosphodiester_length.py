@@ -29,13 +29,9 @@ def get_structure(tag, path):
         return path
 
 def mean(arr):
-     sum = 0
-     total = 0
-     for i in arr:
-          for j in i:
-            total += 1
-            sum += j
-     return sum/total
+    total = sum(sum(i) for i in arr)
+    count = sum(len(i) for i in arr)
+    return total / count if count else 0 
 
 if __name__=="__main__":
 
@@ -61,11 +57,12 @@ if __name__=="__main__":
     
     # Parse sequences and get the average phosphodiester bond length
     for i in tqdm(range(len(old_seqs))):
-         pts = parse_rna(get_structure(list(old_seqs.keys())[i], struct_path))[0].detach().cpu().numpy()
+         pts, _, skips = parse_rna(get_structure(list(old_seqs.keys())[i], struct_path))
+         pts = pts.detach().cpu().numpy()
          temp_lengths = []
          for i in range(len(pts)-1):
+              if i in skips:
+                   continue
               temp_lengths.append(np.linalg.norm(pts[i]-pts[i+1]))
-        #  temp_lengths = np.mean(np.array(temp_lengths))
          lengths.append(temp_lengths)
-    #lengths = np.array(lengths)
     print(mean(lengths))
