@@ -339,21 +339,22 @@ def run_parallel(fasta_file, jobname, gpu_id):
     return jobname, path
 
 if __name__=="__main__":
+    max_seq_len = 80
     mp.set_start_method('spawn', force=True)
 
-    old_seqs, components, macro_tags = load_data(seq_path, 0, 1645, max_len=100)
+    old_seqs, components, macro_tags = load_data(seq_path, 0, 1645, max_len=max_seq_len)
     seqs = SeqDataset(old_seqs)
 
     try:
         c = torch.load('ConverterWeights/converter.pt')
     except:
-        c = Converter(max_seq_len=200)
+        c = Converter(max_seq_len=max_seq_len)
 
     c = c.to(device)
 
     #try:
     print("Training...")
-    train(seqs, epochs=10, batch_size=4, max_seq_len=100, converter=c, tm_score=False)
+    train(seqs, epochs=10, batch_size=4, max_seq_len=max_seq_len, converter=c, tm_score=False)
     # except:
     #     print("Error. Exiting training loop")
     #     torch.save(c, f'/ConverterWeights/converter.pt')
