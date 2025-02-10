@@ -235,12 +235,13 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
 
                 # LAYER 1: RNA-AMINO CONVERSION
                 processed_seqs = [torch.tensor(np.transpose(encode_rna(s), (0, 1)), dtype=torch.float32) for s in seqs] # (batch, seq, base)
-                lengths = sum([len(s) for s in processed_seqs])
+                lengths = ([len(s) for s in processed_seqs])
 
                 # Pad sequences
                 for i in range(len(processed_seqs)):
                   m = nn.ZeroPad2d((0,0,0,max_seq_len-lengths[i]))
                   processed_seqs[i] = m(processed_seqs[i])
+                
                 processed_seqs = torch.stack(processed_seqs).to(device)
 
                 # Send sequences through the converter
@@ -255,7 +256,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
                 # LAYER 2: PROTEIN FOLDING
                 loss = loss_fn(final_seqs)
 
-            lengths = torch.tensor(lengths / batch_size, dtype=torch.float32)
+            lengths = torch.tensor(sum(lengths) / batch_size, dtype=torch.float32)
             losses.append(loss)
 
             empty_dir("FASTAs", delete=False)
@@ -373,7 +374,7 @@ if __name__=="__main__":
 
     #try:
     print("Training...")
-    train(seqs, epochs=10, batch_size=4, max_seq_len=100, converter=c, tm_score=True)
+    train(seqs, epochs=10, batch_size=4, max_seq_len=100, converter=c, tm_score=False)
     # except:
     #     print("Error. Exiting training loop")
     #     torch.save(c, f'/ConverterWeights/converter.pt')
