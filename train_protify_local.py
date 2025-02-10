@@ -79,6 +79,7 @@ from tqdm import tqdm
 
 # Set device to CUDA and use benchmarking for optimization
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+torch.autograd.set_detect_anomaly(True)
 torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.enabled = True
 
