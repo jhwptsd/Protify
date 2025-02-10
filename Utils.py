@@ -157,8 +157,6 @@ def parse_protein(path):
     norms = []
 
     correction_factor = torch.zeros(3, dtype=torch.float32, requires_grad=False)
-
-    print(data)
     
     for x, y, z, atom in data:
         x = float(x)
@@ -167,13 +165,16 @@ def parse_protein(path):
 
         point = torch.tensor([x, y, z], dtype=torch.float32, requires_grad=True) + correction_factor
         if atom == "CA":
+            print("adding...")
             if (correction_factor==torch.zeros(3)).all():
                 correction_factor = torch.tensor([-x, -y, -z])
                 points.append(point)
                 angle_points.append(point)
         elif atom == "N":
+            print("adding...")
             angle_points.append(point)
         elif atom == "C":
+            print("adding...")
             angle_points.append(point)
             v1 = angle_points[-1]-angle_points[-2]
             v2 = angle_points[-3]-angle_points[-2]
