@@ -42,6 +42,7 @@ def load_data(path, a=0, b=float('inf'), max_len=150):
 
 def encode_rna(seq):
     mapping = {'A': [1, 0, 0, 0], 'U': [0, 1, 0, 0], 'C': [0, 0, 1, 0], 'G': [0, 0, 0, 1]}
+    print(seq)
     return torch.tensor([mapping[i] for i in seq], dtype=torch.float32)
 
 def write_fastas(seqs):
