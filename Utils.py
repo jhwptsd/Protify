@@ -42,8 +42,7 @@ def load_data(path, a=0, b=float('inf'), max_len=150):
 
 def encode_rna(seq):
     mapping = {'A': [1, 0, 0, 0], 'U': [0, 1, 0, 0], 'C': [0, 0, 1, 0], 'G': [0, 0, 0, 1]}
-    print(seq)
-    return torch.tensor([mapping[i] for i in seq], dtype=torch.float32)
+    return torch.tensor([mapping[i] for i in seq if i in mapping], dtype=torch.float32)
 
 def write_fastas(seqs):
     # Write a dict of {tag: seq} to as many FASTA files as needed
@@ -76,96 +75,85 @@ def tm_score(p1, p2, lt):
     return -torch.mean(1 / (1 + (distance / d0).pow(2)))
 
 def parse_rna(path):
-    try:
-        parser = MMCIFParser()
-        structure = parser.get_structure("RNA", path)
-        data = []
-        nucleotides = {'A', 'U', 'C', 'G'}
-        for model in structure:
-            for chain in model:
-                for residue in chain:
-                    if residue.get_resname() in nucleotides:
-                        for atom in residue:
-                            vector = atom.get_vector()
-                            data.append((vector[0], vector[1], vector[2], atom.get_name()))
-
-
-        points = []
-        angle_points = []
-        norms = []
-
-        correction_factor = torch.zeros(3, dtype=torch.float32, requires_grad=False)
-
-        for x, y, z, atom in data:
-            x = float(x)
-            y = float(y)
-            z = float(z)
-
-            point = torch.tensor([x, y, z], dtype=torch.float32, requires_grad=True) + correction_factor
-            if atom == "P":
-              if (correction_factor==torch.zeros(3)).all():
-                correction_factor = torch.tensor([-x, -y, -z])
-              points.append(point)
-              angle_points.append(point)
-            elif atom == "\"C1'\"":
-                angle_points.append(point)
-            elif atom == "\"C4'\"":
-                angle_points.append(point)
-                v1 = angle_points[-1]-angle_points[-2]
-                v2 = angle_points[-3]-angle_points[-2]
-                norms.append(torch.cross(v1, v2))
-                angle_points = []
-
-        return torch.tensor(points, requires_grad=True, dtype=torch.float32), torch.tensor(norms, requires_grad=True, dtype=torch.float32)
-
-    except Exception as e:
-        print("Oops. %s" % e)
-        sys.exit(1)
-
-def parse_protein(path):
-    try:
-        parser = PDBParser()
-        structure = parser.get_structure("Protein", path)
-        data = []
-        for model in structure:
-            for chain in model:
-                for residue in chain:
+    parser = MMCIFParser()
+    structure = parser.get_structure("RNA", path)
+    data = []
+    nucleotides = {'A', 'U', 'C', 'G'}
+    for model in structure:
+        for chain in model:
+            for residue in chain:
+                if residue.get_resname() in nucleotides:
                     for atom in residue:
                         vector = atom.get_vector()
                         data.append((vector[0], vector[1], vector[2], atom.get_name()))
 
 
-        points = []
-        angle_points = []
-        norms = []
+    points = []
+    angle_points = []
+    norms = []
 
-        correction_factor = torch.zeros(3, dtype=torch.float32, requires_grad=False)
+    correction_factor = torch.zeros(3, dtype=torch.float32, requires_grad=False)
 
-        for x, y, z, atom in data:
-            x = float(x)
-            y = float(y)
-            z = float(z)
+    for x, y, z, atom in data:
+        x = float(x)
+        y = float(y)
+        z = float(z)
 
-            point = torch.tensor([x, y, z], dtype=torch.float32, requires_grad=True) + correction_factor
-            if atom == "CA":
-              if (correction_factor==torch.zeros(3)).all():
+        point = torch.tensor([x, y, z], dtype=torch.float32, requires_grad=True) + correction_factor
+        if atom == "P":
+            if (correction_factor==torch.zeros(3)).all():
                 correction_factor = torch.tensor([-x, -y, -z])
-              points.append(point)
-              angle_points.append(point)
-            elif atom == "N":
-                angle_points.append(point)
-            elif atom == "C":
-                angle_points.append(point)
-                v1 = angle_points[-1]-angle_points[-2]
-                v2 = angle_points[-3]-angle_points[-2]
-                norms.append(torch.cross(v1, v2))
-                angle_points = []
+                points.append(point)
+            angle_points.append(point)
+        elif atom == "\"C1'\"":
+            angle_points.append(point)
+        elif atom == "\"C4'\"":
+            angle_points.append(point)
+            v1 = angle_points[-1]-angle_points[-2]
+            v2 = angle_points[-3]-angle_points[-2]
+            norms.append(torch.cross(v1, v2))
+            angle_points = []
 
-        return torch.tensor(points, requires_grad=True), torch.tensor(norms, requires_grad=True)
+    return torch.tensor(points, requires_grad=True, dtype=torch.float32), torch.tensor(norms, requires_grad=True, dtype=torch.float32)
+def parse_protein(path):
+    parser = PDBParser()
+    structure = parser.get_structure("Protein", path)
+    data = []
+    for model in structure:
+        for chain in model:
+            for residue in chain:
+                for atom in residue:
+                    vector = atom.get_vector()
+                    data.append((vector[0], vector[1], vector[2], atom.get_name()))
 
-    except Exception as e:
-        print("Oops. %s" % e)
-        sys.exit(1)
+
+    points = []
+    angle_points = []
+    norms = []
+
+    correction_factor = torch.zeros(3, dtype=torch.float32, requires_grad=False)
+
+    for x, y, z, atom in data:
+        x = float(x)
+        y = float(y)
+        z = float(z)
+
+        point = torch.tensor([x, y, z], dtype=torch.float32, requires_grad=True) + correction_factor
+        if atom == "CA":
+            if (correction_factor==torch.zeros(3)).all():
+                correction_factor = torch.tensor([-x, -y, -z])
+                points.append(point)
+                angle_points.append(point)
+        elif atom == "N":
+            angle_points.append(point)
+        elif atom == "C":
+            angle_points.append(point)
+            v1 = angle_points[-1]-angle_points[-2]
+            v2 = angle_points[-3]-angle_points[-2]
+            norms.append(torch.cross(v1, v2))
+            angle_points = []
+
+    return torch.tensor(points, requires_grad=True), torch.tensor(norms, requires_grad=True)
      
 def kabsch_algorithm(P, Q):
     P, Q = torch.as_tensor(P, dtype=torch.float32), torch.as_tensor(Q, dtype=torch.float32)
