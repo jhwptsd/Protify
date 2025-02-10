@@ -178,7 +178,7 @@ def parse_protein(path):
             v2 = angle_points[-3]-angle_points[-2]
             norms.append(torch.cross(v1, v2))
             angle_points = []
-
+    print(points, norms)
     return torch.tensor(points, requires_grad=True), torch.tensor(norms, requires_grad=True)
      
 def kabsch_algorithm(P, Q):
