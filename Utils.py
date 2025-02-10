@@ -124,7 +124,7 @@ def parse_rna(path):
 
         if atom == "P":
             if torch.all(correction_factor == 0): 
-                correction_factor.copy_(-point)
+                correction_factor = -point.clone()
             points.append(point)
             angle_points.append(point)
 
@@ -166,7 +166,7 @@ def parse_protein(path):
 
         if atom == "CA":
             if torch.all(correction_factor == 0):
-                correction_factor.copy_(-point)
+                correction_factor = -point.clone()
             points.append(point)
             angle_points.append(point)
 
