@@ -147,10 +147,9 @@ def parse_protein(path):
     for model in structure:
         for chain in model:
             for residue in chain:
-                #if residue in AA_DICT:
-                    for atom in residue:
-                        vector = atom.get_vector()
-                        data.append((vector[0], vector[1], vector[2], atom.get_name()))
+                for atom in residue:
+                    vector = atom.get_vector()
+                    data.append((vector[0], vector[1], vector[2], atom.get_name()))
 
 
     points = []
@@ -159,6 +158,8 @@ def parse_protein(path):
 
     correction_factor = torch.zeros(3, dtype=torch.float32, requires_grad=False)
 
+    print(data)
+    
     for x, y, z, atom in data:
         x = float(x)
         y = float(y)
@@ -178,7 +179,7 @@ def parse_protein(path):
             v2 = angle_points[-3]-angle_points[-2]
             norms.append(torch.cross(v1, v2))
             angle_points = []
-    print(data)
+
     return torch.tensor(points, requires_grad=True), torch.tensor(norms, requires_grad=True)
      
 def kabsch_algorithm(P, Q):
