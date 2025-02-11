@@ -57,7 +57,7 @@ if __name__=="__main__":
     
     # Parse sequences and get the average phosphodiester bond length
     for i in tqdm(range(len(old_seqs))):
-         pts, _, skips = parse_rna(get_structure(list(old_seqs.keys())[i], struct_path))
+         pts, _, skips = parse_rna(get_structure(list(old_seqs.keys())[i], struct_path), return_skips=True)
          pts = pts.detach().cpu().numpy()
          temp_lengths = []
          for i in range(len(pts)-1):
