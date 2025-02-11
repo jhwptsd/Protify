@@ -67,7 +67,7 @@ def load_data(path, a=0, b=float('inf'), max_len=150):
 
 def encode_rna(seq):
     mapping = {'A': [1, 0, 0, 0], 'U': [0, 1, 0, 0], 'C': [0, 0, 1, 0], 'G': [0, 0, 0, 1]}
-    return torch.tensor([mapping[i] for i in seq if i in mapping], dtype=torch.float32)
+    return torch.tensor([mapping[i] for i in seq if i in mapping], dtype=torch.float32, requires_grad=True)
 
 def write_fastas(seqs):
     # Write a dict of {tag: seq} to as many FASTA files as needed
@@ -89,12 +89,14 @@ def empty_dir(path, delete=True):
       os.rmdir(path)
 
 def RMSD(p1, p2):
-    p1, p2 = torch.as_tensor(p1, dtype=torch.float32), torch.as_tensor(p2, dtype=torch.float32)
+    p1 = p1.clone()
+    p2 = p2.clone()
+    #p1, p2 = torch.as_tensor(p1, dtype=torch.float32), torch.as_tensor(p2, dtype=torch.float32)
     min_len = min(len(p1), len(p2))
     return torch.sqrt(torch.mean((p1[:min_len] - p2[:min_len])**2))
 
 def tm_score(p1, p2, lt):
-    p1, p2 = torch.as_tensor(p1, dtype=torch.float32), torch.as_tensor(p2, dtype=torch.float32)
+    #p1, p2 = torch.as_tensor(p1, dtype=torch.float32), torch.as_tensor(p2, dtype=torch.float32)
     d0 = 1.24 * (lt ** (1/3)) - 1.8
     distance = torch.norm(p1 - p2, dim=-1)
     return -torch.mean(1 / (1 + (distance / d0).pow(2)))
@@ -123,7 +125,7 @@ def parse_rna(path, return_skips=False):
     angle_points = []
     norms = []
 
-    correction_factor = torch.zeros(3, dtype=torch.float32, requires_grad=True)
+    correction_factor = torch.zeros(3, dtype=torch.float32, requires_grad=False)
 
     for x, y, z, atom in data:
         point = torch.tensor([x, y, z], dtype=torch.float32, requires_grad=True) + correction_factor
@@ -170,7 +172,7 @@ def parse_protein(path):
     angle_points = []
     norms = []
 
-    correction_factor = torch.zeros(3, dtype=torch.float32, requires_grad=True)
+    correction_factor = torch.zeros(3, dtype=torch.float32, requires_grad=False)
 
     for x, y, z, atom in data:
         point = torch.tensor([x, y, z], dtype=torch.float32, requires_grad=True) + correction_factor
@@ -199,8 +201,9 @@ def parse_protein(path):
 
      
 def kabsch_algorithm(P, Q):
-    P, Q = torch.as_tensor(P, dtype=torch.float32), torch.as_tensor(Q, dtype=torch.float32)
-    
+    #P, Q = torch.as_tensor(P, dtype=torch.float32), torch.as_tensor(Q, dtype=torch.float32)
+    P, Q = P.clone(), Q.clone()
+
     H = P.T @ Q
     U, S, Vt = torch.linalg.svd(H)
     R = Vt.T @ U.T
