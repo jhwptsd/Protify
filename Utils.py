@@ -201,17 +201,17 @@ def parse_protein(path):
 
      
 def kabsch_algorithm(P, Q):
-    #P, Q = torch.as_tensor(P, dtype=torch.float32), torch.as_tensor(Q, dtype=torch.float32)
     P, Q = P.clone(), Q.clone()
-
+    
     H = P.T @ Q
     U, S, Vt = torch.linalg.svd(H)
-    R = Vt.T @ U.T
     
-    if torch.det(R) < 0:
-        Vt[-1, :] *= -1
-        R = Vt.T @ U.T
-    
+    Vt_copy = Vt.clone()
+    if torch.det(Vt_copy.T @ U.T) < 0:
+        Vt_copy[-1, :] = -Vt_copy[-1, :]
+
+    R = Vt_copy.T @ U.T
+
     return P, Q @ R
      
    
