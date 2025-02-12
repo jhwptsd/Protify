@@ -256,10 +256,11 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
                 print("New best loss! Saving model...")
                 torch.save(conv, f'ConverterWeights/converter.pt')
 
+        string = ""
+        for loss, loss_p in zip(losses, loss_pr):
+           string+=f"{loss}\t{loss_p}\n"
         with open("losses.txt", "w") as txt_file:
-          txt_file.write("\n".join([losses]) + "\n")
-        with open("losses_pr.txt", "w") as txt_file:
-          txt_file.write("\n".join(loss_pr) + "\n")
+          txt_file.write(string)
         torch.save(conv, f'ConverterWeights/converter_epoch_{epoch}.pt')
         torch.save(conv.state_dict(), f'ConverterWeights/converter_params_epoch_{epoch}.pt')
 
