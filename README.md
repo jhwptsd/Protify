@@ -25,4 +25,8 @@ Here is a quick rundown of how to train this model for yourself:
   python train_protify_local.py
   ```
 
-Alternatavly, you could replace step 5 with ``` python setup.py ```
+(Alternatively, you could replace step 5 with ``` python setup.py ```)
+
+You may see warnings while the code is running - please disregard these.
+
+Once the runtime is complete, you should have a few outputs. The ```losses.txt``` file and the ```ConverterWeights``` folder in the main directory contain the training losses and saved models respectively. These can then be used to analyze performance.
