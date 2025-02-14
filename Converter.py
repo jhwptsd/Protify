@@ -16,30 +16,27 @@ class Converter(nn.Module):
         self.transformer = nn.Transformer(d_model=d_model,
                                     nhead=nhead,
                                     dim_feedforward=dim_feedforward,
-                                    num_encoder_layers=num_layers, num_decoder_layers=num_layers)
+                                    num_encoder_layers=num_layers, num_decoder_layers=num_layers,
+                                    batch_first=True)
 
         self.output_linear = nn.Linear(d_model, 20)
         self.softmax = nn.Softmax(dim=-1)
 
 
     def forward(self, x, src_key_padding_mask=None):
-        # x shape: (seq_len, batch_size, 4)
-        x = self.input_embedding(x)  # Now: (seq_len, batch_size, d_model)
+        # x shape: (batch_size, seq_len, 4)
+        x = self.input_embedding(x)  # Now: (batch_size, seq_len, d_model)
 
         x = self.pos_encoder(x)
 
         x = self.transformer(x, x, src_key_padding_mask=src_key_padding_mask)
 
-        x = self.output_linear(x)  # Now: (seq_len, batch_size, 20)
+        x = self.output_linear(x)  # Now: (batch_size, seq_len, 20)
         x = self.softmax(x)
 
         # Convert softmaxxed matrices into one-dimensional indeces
         with torch.no_grad():
-            out = []
-            for i in range(len(x)):
-                out.append([])
-                for j in range(len(x[i])):
-                    out[-1].append((torch.argmax(x[i][j].detach().cpu())).item())
+            out = torch.argmax(x, dim=-1).cpu().tolist()
         return out
 
 # Classic positional encoder - good stuff!

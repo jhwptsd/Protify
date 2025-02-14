@@ -210,16 +210,12 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
                 # batch: ([(tag, seq), (tag, seq),...])
 
                 # LAYER 1: RNA-AMINO CONVERSION
-                processed_seqs = [torch.tensor(encode_rna(s), dtype=torch.float32, requires_grad=True) for s in seqs] # (batch, seq, base)
+                processed_seqs = [encode_rna(s) for s in seqs] # (batch, seq, base)
                 lengths = ([len(s) for s in processed_seqs])
 
                 # Pad sequences
-                for i in range(len(processed_seqs)):
-                  m = nn.ZeroPad2d((0,0,0,max_seq_len-lengths[i]))
-                  processed_seqs[i] = m(processed_seqs[i])
+                processed_seqs = torch.nn.utils.rnn.pad_sequence(processed_seqs, batch_first=True, padding_value=0)
                 
-                processed_seqs = torch.stack(processed_seqs).to(device)
-
                 # Send sequences through the converter
                 aa_seqs = conv(processed_seqs) # (seq, batch, aa)
                 # Reconvert to letter representation
