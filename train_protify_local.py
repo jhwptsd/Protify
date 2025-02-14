@@ -214,7 +214,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
                 lengths = ([len(s) for s in processed_seqs])
 
                 # Pad sequences
-                processed_seqs = torch.nn.utils.rnn.pad_sequence(processed_seqs, batch_first=True, padding_value=0)
+                processed_seqs = torch.nn.utils.rnn.pad_sequence(processed_seqs, batch_first=True, padding_value=0).to(device)
                 
                 # Send sequences through the converter
                 aa_seqs = conv(processed_seqs) # (seq, batch, aa)
