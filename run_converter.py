@@ -1,9 +1,9 @@
 from Converter import *
 from Utils import encode_rna, AA_DICT
 
-conv = torch.load("ConverterWeights/converter_epoch_9.pt", map_location=torch.device("cpu"))
+conv = torch.load("ConverterWeights/converter.pt", map_location=torch.device("cpu"))
 
-seqs = ["AAAAAAAAA", "GGUAUGAGGGUAUU"]
+seqs = ["AAAAAAAAAA", "GGUAUGAGGGUAUU"]
 
 processed_seqs = [encode_rna(s) for s in seqs] # (batch, seq, base)
 lengths = ([len(s) for s in processed_seqs])

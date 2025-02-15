@@ -2,8 +2,9 @@ import hashlib
 import json
 import os
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 import numpy as np
-import sys
 from Bio.PDB import *
 
 # Index to amino acid dictionary
@@ -91,15 +92,45 @@ def empty_dir(path, delete=True):
 def RMSD(p1, p2):
     p1 = p1.clone()
     p2 = p2.clone()
-    #p1, p2 = torch.as_tensor(p1, dtype=torch.float32), torch.as_tensor(p2, dtype=torch.float32)
+    
     min_len = min(len(p1), len(p2))
     return torch.sqrt(torch.mean((p1[:min_len] - p2[:min_len])**2))
 
 def tm_score(p1, p2, lt):
-    #p1, p2 = torch.as_tensor(p1, dtype=torch.float32), torch.as_tensor(p2, dtype=torch.float32)
     d0 = 1.24 * (lt ** (1/3)) - 1.8
     distance = torch.norm(p1 - p2, dim=-1)
     return -torch.mean(1 / (1 + (distance / d0).pow(2)))
+
+class AngleLoss(nn.Module):
+    def __init__(self):
+        super(AngleLoss, self).__init__()
+
+    def compute_angles(self, points):
+        vectors = points[1:] - points[:-1]
+        
+        # Compute bond angles
+        dot_products = torch.sum(vectors[:-1] * vectors[1:], dim=-1)
+        norms = torch.norm(vectors[:-1], dim=-1) * torch.norm(vectors[1:], dim=-1)
+        bond_angles = torch.acos(dot_products / (norms + 1e-8))
+        
+        # Compute torsion angles
+        cross_products = torch.cross(vectors[:-1], vectors[1:], dim=-1)
+        dot_cross = torch.sum(cross_products[:-1] * cross_products[1:], dim=-1)
+        dot_vectors = torch.sum(vectors[:-2] * cross_products[1:], dim=-1)
+        torsion_angles = torch.atan2(dot_cross, dot_vectors)
+        
+        return bond_angles, torsion_angles
+
+    def forward(self, pred_points, target_points):
+        # Compute angles for predicted and target structures
+        pred_bond_angles, pred_torsion_angles = self.compute_angles(pred_points)
+        target_bond_angles, target_torsion_angles = self.compute_angles(target_points)
+        
+        bond_loss = F.mse_loss(pred_bond_angles, target_bond_angles)
+        torsion_loss = F.mse_loss(pred_torsion_angles, target_torsion_angles)
+
+        total_loss = bond_loss + torsion_loss
+        return total_loss
 
 def parse_rna(path, return_skips=False):
     parser = MMCIFParser(QUIET=True)
@@ -204,7 +235,7 @@ def kabsch_algorithm(P, Q):
     P, Q = P.clone(), Q.clone()
     
     H = P.T @ Q
-    U, S, Vt = torch.linalg.svd(H)
+    U, _, Vt = torch.linalg.svd(H)
     
     Vt_copy = Vt.clone()
     if torch.det(Vt_copy.T @ U.T) < 0:
@@ -215,9 +246,12 @@ def kabsch_algorithm(P, Q):
     return P, Q @ R
      
    
-def protein_to_rna(protein, rna_path, corrector, tm=False):
+def protein_to_rna(protein, rna_path, corrector, tm=False, angle=False):
     prot_points, _ = parse_protein(protein)
     rna_points, _ = parse_rna(rna_path)
+    if angle:
+        a = AngleLoss()
+        return a(prot_points,rna_points)
     prot_points = correct_protein_coords(prot_points, corrector)
     if len(prot_points)>len(rna_points):
         prot_points = prot_points[:len(rna_points)]

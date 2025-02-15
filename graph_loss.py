@@ -21,8 +21,8 @@ with open(file_path, "r") as file:
 s = [i for i in range(len(column1))]
 
 fig, ax = plt.subplots()
-ax.plot(s,column1)
+ax.plot(s,column2)
 
 ax.grid()
-plt.savefig("loss.png")
+plt.savefig("loss_pr.png")
 plt.show()

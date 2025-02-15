@@ -1,5 +1,4 @@
 # Import libraries
-import importlib
 import os
 import sys
 from sys import version_info
@@ -194,7 +193,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
 
     dataloader = torch.utils.data.DataLoader(seqs, batch_size=batch_size, shuffle=True, drop_last=True, num_workers=8, pin_memory=True)
 
-    loss_fn = ProteinFoldLoss(pp_dist, tm_score)
+    loss_fn = ProteinFoldLoss(pp_dist, tm_score, angle=True)
 
     model_type = "alphafold2"
     download_alphafold_params(model_type, Path("."))
@@ -262,10 +261,11 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
 
 
 class ProteinFoldLoss(nn.Module):
-   def __init__(self, pp_dist, tm_score):
+   def __init__(self, pp_dist, tm_score, angle=False):
       super(ProteinFoldLoss, self).__init__()
       self.pp_dist = pp_dist
       self.tm_score = tm_score
+      self.angle = angle
   
    def forward(self, final_seqs):
       num_gpus = torch.cuda.device_count()
@@ -280,7 +280,7 @@ class ProteinFoldLoss(nn.Module):
             results = pool.starmap(run_parallel, zip(fasta_files, jobnames, gpu_assignments))
 
       loss = torch.stack([
-      protein_to_rna(path, get_structure(jobname, struct_path), self.pp_dist, tm=self.tm_score) for jobname, path in results])
+      protein_to_rna(path, get_structure(jobname, struct_path), self.pp_dist, tm=self.tm_score, angle=self.angle) for jobname, path in results])
       for jobname, _ in results:
           empty_dir(jobname)
 
