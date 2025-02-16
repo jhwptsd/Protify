@@ -2,6 +2,7 @@ from Converter import *
 from Utils import encode_rna, AA_DICT
 
 conv = torch.load("ConverterWeights/converter.pt", map_location=torch.device("cpu"))
+conv.eval()
 
 seqs = ["AAAAAAAAAA", "GGUAUGAGGGUAUU"]
 
