@@ -132,8 +132,8 @@ class AngleLoss(nn.Module):
         total_loss = bond_loss + torsion_loss
         return total_loss
 
-def parse_rna(path, return_skips=False):
-    parser = MMCIFParser(QUIET=True)
+def parse_rna(path, return_skips=False, pdb=False):
+    parser = MMCIFParser(QUIET=True) if not pdb else PDBParser(QUIET=True)
     structure = parser.get_structure("RNA", path)
     data = []
     nucleotides = {'A', 'U', 'C', 'G'}
