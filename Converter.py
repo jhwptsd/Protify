@@ -23,7 +23,7 @@ class Converter(nn.Module):
         self.softmax = nn.Softmax(dim=-1)
 
 
-    def forward(self, x, src_key_padding_mask=None):
+    def forward(self, x, src_key_padding_mask=None, sm=False):
         # x shape: (batch_size, seq_len, 4)
         x = self.input_embedding(x)  # Now: (batch_size, seq_len, d_model)
 
@@ -33,7 +33,10 @@ class Converter(nn.Module):
 
         x = self.output_linear(x)  # Now: (batch_size, seq_len, 20)
         x = self.softmax(x)
-
+        
+        if sm:
+            return x
+        
         # Convert softmaxxed matrices into one-dimensional indeces
         with torch.no_grad():
             out = torch.argmax(x, dim=-1).cpu().tolist()
