@@ -224,7 +224,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
 
             with torch.no_grad():
                 write_fastas(final_seqs)
-                loss_per_sample = ProteinFoldLoss(final_seqs)
+                loss_per_sample = loss_fn(final_seqs)
                 empty_dir("FASTAs", delete=False)
                 loss = loss_per_sample.mean()
                 lengths = sum(lengths)/len(lengths)
