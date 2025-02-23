@@ -125,9 +125,12 @@ class AngleLoss(nn.Module):
         # Compute angles for predicted and target structures
         pred_bond_angles, pred_torsion_angles = self.compute_angles(pred_points)
         target_bond_angles, target_torsion_angles = self.compute_angles(target_points)
+        min_len_1 = min(len(pred_bond_angles), len(target_bond_angles))
+        min_len_2 = min(len(pred_torsion_angles), len(target_torsion_angles))
         
-        bond_loss = F.mse_loss(pred_bond_angles, target_bond_angles)
-        torsion_loss = F.mse_loss(pred_torsion_angles, target_torsion_angles)
+        
+        bond_loss = F.mse_loss(pred_bond_angles[:min_len_1], target_bond_angles[:min_len_1])
+        torsion_loss = F.mse_loss(pred_torsion_angles[:min_len_2], target_torsion_angles[:min_len_2])
 
         total_loss = bond_loss + torsion_loss
         return total_loss
