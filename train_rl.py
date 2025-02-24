@@ -209,8 +209,7 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
                 processed_seqs, batch_first=True, padding_value=0
             ).to(device)
 
-            logits = conv(processed_seqs, sm=True)  # [batch, seq_len, num_aa]
-            probs = torch.softmax(logits, dim=-1)
+            probs = conv(processed_seqs, sm=True)  # [batch, seq_len, num_aa]
             dist = torch.distributions.Categorical(probs)
             aa_indices = dist.sample()  # [batch, seq_len]
             log_probs = dist.log_prob(aa_indices)  # [batch, seq_len]
