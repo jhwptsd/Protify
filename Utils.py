@@ -237,6 +237,11 @@ def parse_protein(path):
 def kabsch_algorithm(P, Q):
     P, Q = P.clone(), Q.clone()
     
+    P_centroid = torch.mean(P, dim=0)
+    Q_centroid = torch.mean(Q, dim=0)
+    P = P - P_centroid
+    Q = Q - Q_centroid
+    
     H = P.T @ Q
     U, _, Vt = torch.linalg.svd(H)
     

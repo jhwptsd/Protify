@@ -229,12 +229,18 @@ def train(seqs, epochs=50, batch_size=32,tm_score=False, max_seq_len=150, conver
                 lengths = sum(lengths)/len(lengths)
                 print(f"\n\nCurrent Loss: {loss}")
                 print(f"Average Loss per Residue: {loss/lengths}")
+                losses.append(loss)
                 loss_pr.append(loss/lengths)
-                rewards = -loss_per_sample
+                rewards = -loss_per_sample/(lengths-1)
+                
 
             log_probs_sum = log_probs.sum(dim=1) 
             policy_loss = -(log_probs_sum * rewards.to(device)).mean()
 
+            entropy = dist.entropy().mean()
+            similarity = torch.cdist(torch.softmax(probs, -1), torch.softmax(probs, -1)).mean()
+            policy_loss = policy_loss - 0.1*entropy - 0.3*similarity
+            
             policy_loss.backward()
             nn.utils.clip_grad_norm_(conv.parameters(), 1.0)
             optimizer.step()
@@ -346,12 +352,8 @@ if __name__=="__main__":
 
     c = c.to(device)
 
-    #try:
     print("Training...")
     train(seqs, epochs=10, batch_size=4, max_seq_len=max_seq_len, converter=c, tm_score=False)
-    # except:
-    #     print("Error. Exiting training loop")
-    #     torch.save(c, f'/ConverterWeights/converter.pt')
 
     torch.save(c, f'ConverterWeights/converter.pt')
 
