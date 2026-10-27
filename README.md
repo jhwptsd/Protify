@@ -71,12 +71,12 @@ Outputs:
 ### Trying it without a GPU (`--fake-fold`)
 
 ```
-python train_rl.py --fake-fold --fresh --epochs 5 --batch-size 8 --max-seq-len 30 --num-rnas 200
+python train_rl.py --fake-fold --fresh --epochs 40 --batch-size 16 --lr 3e-3 --max-seq-len 30 --num-rnas 320
 ```
 
 `--fake-fold` replaces AlphaFold and RNA3DB with a cheap synthetic task, so training runs in seconds on a laptop CPU with only `torch` and `biopython` installed (no ColabFold, no downloads). Each amino acid has a fixed bond angle and torsion, and a protein "folds" into the chain those angles describe. A nucleotide's target geometry is that of one particular amino acid, so a converter that learns to map A, U, C and G to those amino acids reaches zero loss.
 
-Use it to check that the training loop learns, runs end to end and saves checkpoints: the loss should fall well below its starting value. It says nothing about whether the real approach works. Outputs go to `ConverterWeights_fake/` and `losses_fake.txt`, so real checkpoints are never touched. It works with `train_supervised.py` too, and `--loss` is ignored (the angle loss is always used).
+This is about 800 updates. A policy gradient needs many updates, so a run of only ~100 batches is too short to show anything: the loss stays flat at its starting value of about 1.1. Use it to check that the training loop learns, runs end to end and saves checkpoints: the loss should fall well below its starting value. It says nothing about whether the real approach works. Outputs go to `ConverterWeights_fake/` and `losses_fake.txt`, so real checkpoints are never touched. It works with `train_supervised.py` too, and `--loss` is ignored (the angle loss is always used).
 
 ### About the checkpoints in `ConverterWeights/`
 

@@ -53,7 +53,10 @@ def train(dataset, loss_fn, converter, epochs=10, batch_size=4, lr=1e-3, entropy
             lengths_f = lengths.to(device).float()
             rewards = -batch_loss / lengths_f
 
+            # Scale advantages to unit spread so the policy-gradient term doesn't shrink with the
+            # reward's units (per-residue rewards are ~0.01) and get swamped by the entropy bonus
             advantage = leave_one_out_advantage(rewards)
+            advantage = advantage / (advantage.std() + 1e-8) if advantage.numel() > 1 else advantage
             log_probs = (dist.log_prob(aa_indices) * token_mask).sum(dim=1)  # padding contributes nothing
             entropy = (dist.entropy() * token_mask).sum() / token_mask.sum()
             policy_loss = -(log_probs * advantage).mean() - entropy_coef * entropy
@@ -91,7 +94,7 @@ def main():
     parser.add_argument("--max-seq-len", type=int, default=80, help="skip RNAs longer than this")
     parser.add_argument("--num-rnas", type=int, default=1646, help="use the first N entries of RNA3DB")
     parser.add_argument("--lr", type=float, default=1e-3)
-    parser.add_argument("--entropy-coef", type=float, default=0.1)
+    parser.add_argument("--entropy-coef", type=float, default=0.01)
     parser.add_argument("--pp-dist", type=float, default=DEFAULT_PP_DIST,
                         help="P-P spacing used when scoring by RMSD/TM-score (unused for the default angle loss)")
     parser.add_argument("--loss", choices=["angle", "rmsd", "tm"], default="angle")
