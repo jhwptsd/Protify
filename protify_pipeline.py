@@ -199,3 +199,27 @@ class ProteinFoldLoss:
         finally:
             empty_dir(self.work_dir)
         return torch.stack(losses)
+
+
+FAKE_OUT_DIR = "ConverterWeights_fake"
+
+
+def build_task(args):
+    """Return (rna sequences, loss function, cleanup function, weights dir) for the chosen mode.
+    With --fake-fold, AlphaFold and RNA3DB are replaced by the synthetic task in fake_fold.py."""
+    if getattr(args, "fake_fold", False):
+        from fake_fold import FakeFoldLoss, synthetic_rna_dataset
+        print("Using the fake folder: synthetic RNAs and a synthetic fold score (no AlphaFold, no RNA3DB).")
+        if args.loss != "angle":
+            print("Note: --loss is ignored in fake mode; the angle loss is always used.")
+        seqs = synthetic_rna_dataset(args.num_rnas, args.max_seq_len, args.seed)
+        return seqs, FakeFoldLoss(seqs), (lambda: None), FAKE_OUT_DIR
+
+    from Utils import load_data
+    setup_environment()
+    seqs, components, macro_tags = load_data(SEQ_PATH, 0, args.num_rnas - 1, max_len=args.max_seq_len)
+    paths = structure_paths(seqs, components, macro_tags, STRUCT_PATH)
+    workers = FoldingWorkers()
+    loss_fn = ProteinFoldLoss(paths, workers, pp_dist=args.pp_dist, use_tm=args.loss == "tm",
+                              angle=args.loss == "angle")
+    return seqs, loss_fn, workers.close, "ConverterWeights"

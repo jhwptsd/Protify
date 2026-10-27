@@ -14,3 +14,5 @@ __pycache__
 /ValidationWork
 /rna3db-mmcifs
 /rna3db-jsons
+/ConverterWeights_fake
+/losses_fake.txt

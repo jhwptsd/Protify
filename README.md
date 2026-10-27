@@ -21,6 +21,7 @@ Training data is [RNA3DB](https://github.com/marcellszi/rna3db), which the train
 | `train_supervised.py` | Trains the converter by distilling its best-of-N samples (N folds per RNA, so slower). |
 | `validate.py` | Scores predictions against the true structures in `Validation/Actual/`. |
 | `run_converter.py` | Runs a trained converter on RNA sequences you give it. |
+| `fake_fold.py` | A synthetic stand-in for AlphaFold used by `--fake-fold` (see below). |
 | `phosphodiester_length.py` | Measures the average P-P distance over RNA3DB (for `--pp-dist`). |
 | `graph_loss.py` | Plots a training curve from `losses.txt`. |
 | `substitution/` | Experimental: swaps protein residues for nucleotides to build an all-atom RNA model. |
@@ -66,6 +67,16 @@ Outputs:
 - `losses.txt` (`train_rl.py`) or `losses_sl.txt` (`train_supervised.py`): the loss and loss per residue for every batch. Plot it with `python graph_loss.py losses.txt --window 20`.
 - `ConverterWeights/converter.pt`: the model from the epoch with the lowest average loss.
 - `ConverterWeights/converter_epoch_N.pt` and `converter_params_epoch_N.pt`: the full model and its `state_dict` after each epoch.
+
+### Trying it without a GPU (`--fake-fold`)
+
+```
+python train_rl.py --fake-fold --fresh --epochs 5 --batch-size 8 --max-seq-len 30 --num-rnas 200
+```
+
+`--fake-fold` replaces AlphaFold and RNA3DB with a cheap synthetic task, so training runs in seconds on a laptop CPU with only `torch` and `biopython` installed (no ColabFold, no downloads). Each amino acid has a fixed bond angle and torsion, and a protein "folds" into the chain those angles describe. A nucleotide's target geometry is that of one particular amino acid, so a converter that learns to map A, U, C and G to those amino acids reaches zero loss.
+
+Use it to check that the training loop learns, runs end to end and saves checkpoints: the loss should fall well below its starting value. It says nothing about whether the real approach works. Outputs go to `ConverterWeights_fake/` and `losses_fake.txt`, so real checkpoints are never touched. It works with `train_supervised.py` too, and `--loss` is ignored (the angle loss is always used).
 
 ### About the checkpoints in `ConverterWeights/`
 

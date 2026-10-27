@@ -11,10 +11,7 @@ import torch
 import torch.multiprocessing as mp
 
 from Converter import Converter, load_converter
-from Utils import load_data
-from protify_pipeline import (DEFAULT_PP_DIST, SEQ_PATH, STRUCT_PATH, FoldingWorkers, ProteinFoldLoss,
-                              SeqDataset, indices_to_strings, prepare_batch, setup_environment,
-                              structure_paths)
+from protify_pipeline import DEFAULT_PP_DIST, SeqDataset, build_task, indices_to_strings, prepare_batch
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -28,7 +25,7 @@ def leave_one_out_advantage(rewards):
 
 
 def train(dataset, loss_fn, converter, epochs=10, batch_size=4, lr=1e-3, entropy_coef=0.1,
-          out_dir="ConverterWeights"):
+          out_dir="ConverterWeights", losses_path="losses.txt"):
     os.makedirs(out_dir, exist_ok=True)
     conv = converter
     conv.train()
@@ -81,7 +78,7 @@ def train(dataset, loss_fn, converter, epochs=10, batch_size=4, lr=1e-3, entropy
             print("New best epoch loss! Saving model...")
             torch.save(conv, f"{out_dir}/converter.pt")
 
-        with open("losses.txt", "w") as txt_file:
+        with open(losses_path, "w") as txt_file:
             txt_file.writelines(f"{l}\t{p}\n" for l, p in zip(losses, losses_per_residue))
         torch.save(conv, f"{out_dir}/converter_epoch_{epoch}.pt")
         torch.save(conv.state_dict(), f"{out_dir}/converter_params_epoch_{epoch}.pt")
@@ -99,34 +96,33 @@ def main():
                         help="P-P spacing used when scoring by RMSD/TM-score (unused for the default angle loss)")
     parser.add_argument("--loss", choices=["angle", "rmsd", "tm"], default="angle")
     parser.add_argument("--fresh", action="store_true",
-                        help="ignore ConverterWeights/converter.pt and start from random weights")
+                        help="ignore the saved converter.pt and start from random weights")
+    parser.add_argument("--fake-fold", action="store_true",
+                        help="replace AlphaFold and RNA3DB with a cheap synthetic task (runs on a laptop CPU; "
+                             "writes to ConverterWeights_fake/ and losses_fake.txt)")
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
 
     warnings.filterwarnings("ignore")
     torch.manual_seed(args.seed)
     mp.set_start_method("spawn", force=True)
-    setup_environment()
 
-    seqs, components, macro_tags = load_data(SEQ_PATH, 0, args.num_rnas - 1, max_len=args.max_seq_len)
-    paths = structure_paths(seqs, components, macro_tags, STRUCT_PATH)
+    seqs, loss_fn, cleanup, out_dir = build_task(args)
+    losses_path = "losses_fake.txt" if args.fake_fold else "losses.txt"
 
-    checkpoint = "ConverterWeights/converter.pt"
+    checkpoint = f"{out_dir}/converter.pt"
     if os.path.exists(checkpoint) and not args.fresh:
         print(f"Resuming from {checkpoint}")
         conv = load_converter(checkpoint, device, max_seq_len=args.max_seq_len)
     else:
         conv = Converter(max_seq_len=args.max_seq_len).to(device)
 
-    workers = FoldingWorkers()
     try:
-        loss_fn = ProteinFoldLoss(paths, workers, pp_dist=args.pp_dist, use_tm=args.loss == "tm",
-                                  angle=args.loss == "angle")
         print("Training...")
         train(SeqDataset(seqs), loss_fn, conv, epochs=args.epochs, batch_size=args.batch_size,
-              lr=args.lr, entropy_coef=args.entropy_coef)
+              lr=args.lr, entropy_coef=args.entropy_coef, out_dir=out_dir, losses_path=losses_path)
     finally:
-        workers.close()
+        cleanup()
 
 
 if __name__ == "__main__":

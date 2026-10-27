@@ -135,3 +135,30 @@ def test_leave_one_out_advantage():
     r = torch.tensor([1.0, 2.0, 6.0])
     # each reward minus the mean of the other two
     assert torch.allclose(leave_one_out_advantage(r), torch.tensor([1 - 4.0, 2 - 3.5, 6 - 1.5]))
+
+
+def test_fake_fold_perfect_converter_scores_zero():
+    from fake_fold import FakeFoldLoss, RNA_TO_AA
+    from Utils import AA_DICT
+    rna = {"r1": "ACGUACGUAC", "r2": "GGGUUUCCCAAA"}
+    perfect = {k: "".join(AA_DICT[RNA_TO_AA[c]] for c in v) for k, v in rna.items()}
+    losses = FakeFoldLoss(rna)(perfect)
+    assert losses.shape == (2,) and torch.all(losses < 1e-4)
+
+
+def test_fake_fold_wrong_converter_scores_worse():
+    from fake_fold import FakeFoldLoss
+    rna = {"r1": "ACGUACGUACGU"}
+    assert FakeFoldLoss(rna)({"r1": "WWWWWWWWWWWW"}).item() > 0.05
+
+
+def test_fake_fold_trace_has_unit_bonds():
+    from fake_fold import fake_protein_trace
+    pts = fake_protein_trace("ARNDCQEGHILK")
+    assert torch.allclose(torch.norm(pts[1:] - pts[:-1], dim=1)[1:], torch.ones(len(pts) - 2), atol=1e-4)
+
+
+def test_synthetic_dataset_lengths():
+    from fake_fold import MIN_RNA_LEN, synthetic_rna_dataset
+    data = synthetic_rna_dataset(20, 30, seed=1)
+    assert len(data) == 20 and all(MIN_RNA_LEN <= len(s) <= 30 and set(s) <= set("AUCG") for s in data.values())
