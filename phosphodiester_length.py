@@ -1,68 +1,39 @@
-from Utils import *
+"""Measure the average distance between neighbouring phosphorus atoms (the P-P step of the RNA
+backbone) over RNA3DB. The result is a sensible value for --pp-dist in the training scripts,
+which use it to rescale predicted protein traces when scoring with RMSD / TM-score."""
+import argparse
+
+import numpy as np
 from tqdm import tqdm
-# Instead of regressing to find tgt lengths, we can just use the average length of the phosphodiester bond
 
-seqs = {} # All sequences - may get quite large
+from Utils import load_data, parse_rna
+from protify_pipeline import SEQ_PATH, STRUCT_PATH, setup_environment, structure_paths
 
-# Used for file tree searching
-components = []
-macro_tags = []
-
-
-def get_structure(tag, path):
-        # Return the structure of an RNA molecule given its tag and the path to the structure directory
-        # File directory:
-        # root
-        #  -- colabfold.dir
-        #  -- train_protify.ipynb
-        #  -- data.dir
-        #  ---- component 1.dir
-        #  ------ tag 1.dir
-        #  -------- tag 1a.cif
-        #  -------- tag 1b.cif
-        # ...
-        index = list(old_seqs.keys()).index(tag)
-        component = components[index]
-        macro_tag = macro_tags[index]
-
-        path = f"{path}/train_set/{component}/{macro_tag}/{tag}.cif"
-        return path
 
 def mean(arr):
     total = sum(sum(i) for i in arr)
     count = sum(len(i) for i in arr)
-    return total / count if count else 0 
+    return total / count if count else 0
 
-if __name__=="__main__":
 
-    if not os.path.exists("rna3db-mmcifs"):
-        print("Downloading RNA3Db...")
-        # Donwload RNA3Db structure files
-        os.system('wget https://github.com/marcellszi/rna3db/releases/download/incremental-update/rna3db-mmcifs.v2.tar.xz')
-        print("Extracting structure files...")
-        os.system('sudo tar -xf rna3db-mmcifs.v2.tar.xz')
-        os.system('rm rna3db-mmcifs.v2.tar.xz')
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--num-rnas", type=int, default=1646, help="use the first N entries of RNA3DB")
+    parser.add_argument("--max-len", type=int, default=200)
+    args = parser.parse_args()
 
-        # Donwload RNA3Db sequence files
-        os.system('wget https://github.com/marcellszi/rna3db/releases/download/incremental-update/rna3db-jsons.tar.gz')
-        print("Extracting sequence files...")
-        os.system('tar -xzf rna3db-jsons.tar.gz')
-        os.system('rm rna3db-jsons.tar.gz')
-    seq_path = "rna3db-jsons/cluster.json"
-    struct_path = "rna3db-mmcifs"
+    setup_environment()
+    seqs, components, macro_tags = load_data(SEQ_PATH, 0, args.num_rnas - 1, max_len=args.max_len)
+    paths = structure_paths(seqs, components, macro_tags, STRUCT_PATH)
 
-    # Load up the data
-    old_seqs, components, macro_tags = load_data(seq_path, 0, 1645, max_len=200)
     lengths = []
-    
-    # Parse sequences and get the average phosphodiester bond length
-    for i in tqdm(range(len(old_seqs))):
-         pts, _, skips = parse_rna(get_structure(list(old_seqs.keys())[i], struct_path), return_skips=True)
-         pts = pts.detach().cpu().numpy()
-         temp_lengths = []
-         for i in range(len(pts)-1):
-              if i in skips:
-                   continue
-              temp_lengths.append(np.linalg.norm(pts[i]-pts[i+1]))
-         lengths.append(temp_lengths)
+    for tag in tqdm(seqs):
+        pts, breaks = parse_rna(paths[tag], return_breaks=True)
+        pts = pts.numpy()
+        # Only count steps between neighbouring residues of the same chain, not across gaps
+        lengths.append([np.linalg.norm(pts[i] - pts[i + 1]) for i in range(len(pts) - 1) if not breaks[i]])
     print(mean(lengths))
+
+
+if __name__ == "__main__":
+    main()

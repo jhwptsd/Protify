@@ -1,20 +1,32 @@
-from Converter import *
-from Utils import encode_rna, AA_DICT
+"""Convert RNA sequences to protein sequences with a trained converter.
 
-conv = torch.load("ConverterWeights/converter.pt", map_location=torch.device("cpu"))
-conv.eval()
+    python run_converter.py GGUAUGAGGGUAUU AAAAAAAAAA
+"""
+import argparse
 
-seqs = ["AAAAAAAAAA", "GGUAUGAGGGUAUU"]
+import torch
 
-processed_seqs = [encode_rna(s) for s in seqs] # (batch, seq, base)
-lengths = ([len(s) for s in processed_seqs])
+from Converter import load_converter
+from protify_pipeline import indices_to_strings, prepare_batch
 
-# Pad sequences
-processed_seqs = torch.nn.utils.rnn.pad_sequence(processed_seqs, batch_first=True, padding_value=0)
 
-# Send sequences through the converter
-aa_seqs = conv(processed_seqs) # (seq, batch, aa)
-# Reconvert to letter representation
-aa_seqs_strings = ["".join(map(AA_DICT.get, aa_seq[:length])) for aa_seq, length in zip(aa_seqs, lengths)]
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("sequences", nargs="*", default=["AAAAAAAAAA", "GGUAUGAGGGUAUU"],
+                        help="RNA sequences (A, C, G, U)")
+    parser.add_argument("--checkpoint", default="ConverterWeights/converter.pt")
+    args = parser.parse_args()
 
-print(aa_seqs_strings)
+    conv = load_converter(args.checkpoint, "cpu")
+    conv.eval()
+
+    x, lengths, mask = prepare_batch([s.upper().replace("T", "U") for s in args.sequences], "cpu")
+    with torch.no_grad():
+        aa_indices = torch.tensor(conv(x, src_key_padding_mask=mask))  # argmax indices, (batch, seq)
+
+    for rna, protein in zip(args.sequences, indices_to_strings(aa_indices, lengths)):
+        print(f"{rna}\t{protein}")
+
+
+if __name__ == "__main__":
+    main()

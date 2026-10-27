@@ -8,3 +8,9 @@
 /pytestemp
 __pycache__
 .DS_Store
+
+# Protify working files
+/FoldingWork
+/ValidationWork
+/rna3db-mmcifs
+/rna3db-jsons
