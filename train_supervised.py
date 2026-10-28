@@ -21,7 +21,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def train(dataset, loss_fn, converter, epochs=10, batch_size=4, num_samples=4, lr=1e-3,
-          out_dir="ConverterWeights", losses_path="losses_sl.txt"):
+          out_dir="ConverterWeights", epoch_hook=None, losses_path="losses_sl.txt"):
     os.makedirs(out_dir, exist_ok=True)
     conv = converter
     optimizer = torch.optim.AdamW(conv.parameters(), lr=lr)
@@ -76,6 +76,9 @@ def train(dataset, loss_fn, converter, epochs=10, batch_size=4, num_samples=4, l
             print(f"Average Loss per Residue: {per_residue}")
             print(f"Cross-entropy on best candidates: {train_loss.item()}")
 
+        if epoch_hook is not None:
+            epoch_hook(conv)
+
         epoch_loss = sum(epoch_losses) / max(1, len(epoch_losses))
         if epoch_loss < best_epoch_loss:
             best_epoch_loss = epoch_loss
@@ -111,6 +114,10 @@ def main():
     mp.set_start_method("spawn", force=True)
 
     seqs, loss_fn, cleanup, out_dir = build_task(args)
+    epoch_hook = None
+    if args.fake_fold:
+        from fake_fold import fake_mapping_report
+        epoch_hook = lambda model: fake_mapping_report(model, device)
     losses_path = "losses_fake.txt" if args.fake_fold else "losses_sl.txt"
 
     checkpoint = f"{out_dir}/converter.pt"
@@ -123,7 +130,7 @@ def main():
     try:
         print("Training...")
         train(SeqDataset(seqs), loss_fn, conv, epochs=args.epochs, batch_size=args.batch_size,
-              num_samples=args.num_samples, lr=args.lr, out_dir=out_dir, losses_path=losses_path)
+              num_samples=args.num_samples, lr=args.lr, out_dir=out_dir, losses_path=losses_path, epoch_hook=epoch_hook)
     finally:
         cleanup()
 

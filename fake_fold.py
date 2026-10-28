@@ -74,3 +74,23 @@ class FakeFoldLoss:
             losses = [self.angle_loss(fake_protein_trace(seq), fake_rna_trace(self.rna_seqs[ref_tags[name]]))
                       for name, seq in final_seqs.items()]
         return torch.stack(losses)
+
+
+def fake_mapping_report(conv, device, length=24, seed=0):
+    """Print what the converter currently does with each nucleotide in the fake task: the amino acid it
+    gives that nucleotide on average (and with what probability), next to the amino acid that scores zero."""
+    from Utils import encode_rna
+    g = torch.Generator().manual_seed(seed)
+    seq = "".join("AUCG"[j] for j in torch.randint(0, 4, (length,), generator=g).tolist())
+    was_training = conv.training
+    conv.eval()
+    with torch.no_grad():
+        probs = conv(encode_rna(seq).unsqueeze(0).to(device), sm=True)[0].cpu()  # (L, 20)
+    conv.train(was_training)
+    parts = []
+    for nuc, target in RNA_TO_AA.items():
+        rows = [i for i, c in enumerate(seq) if c == nuc and i >= 3]
+        mean = probs[rows].mean(0)
+        best = int(mean.argmax())
+        parts.append(f"{nuc}: picks {AA_DICT[best]} (p={mean[best]:.2f}), ideal {AA_DICT[target]} (p={mean[target]:.2f})")
+    print("Mapping check -> " + " | ".join(parts))

@@ -4,6 +4,7 @@ Each step samples a protein sequence for every RNA in the batch, folds it with A
 the fold against the true RNA structure, and nudges the converter towards sequences that scored
 better than the rest of the batch. AlphaFold isn't differentiable, hence the policy gradient."""
 import argparse
+import math
 import os
 import warnings
 
@@ -25,14 +26,14 @@ def leave_one_out_advantage(rewards):
 
 
 def train(dataset, loss_fn, converter, epochs=10, batch_size=4, lr=1e-3, entropy_coef=0.1,
-          out_dir="ConverterWeights", losses_path="losses.txt"):
+          out_dir="ConverterWeights", epoch_hook=None, losses_path="losses.txt"):
     os.makedirs(out_dir, exist_ok=True)
     conv = converter
     conv.train()
     optimizer = torch.optim.AdamW(conv.parameters(), lr=lr)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=True)
 
-    losses, losses_per_residue = [], []
+    losses, losses_per_residue, entropies = [], [], []
     best_epoch_loss = float("inf")
 
     for epoch in range(epochs):
@@ -70,9 +71,14 @@ def train(dataset, loss_fn, converter, epochs=10, batch_size=4, lr=1e-3, entropy
             per_residue = (batch_loss / lengths_f).mean().item()
             losses.append(loss)
             losses_per_residue.append(per_residue)
+            entropies.append(entropy.item())
             epoch_losses.append(loss)
             print(f"\n\nCurrent Loss: {loss}")
             print(f"Average Loss per Residue: {per_residue}")
+            print(f"Policy entropy: {entropy.item():.3f} (uniform = {math.log(20):.3f})")
+
+        if epoch_hook is not None:
+            epoch_hook(conv)
 
         epoch_loss = sum(epoch_losses) / max(1, len(epoch_losses))
         # Lower is better for every loss option (the TM-score loss is already negated)
@@ -82,7 +88,7 @@ def train(dataset, loss_fn, converter, epochs=10, batch_size=4, lr=1e-3, entropy
             torch.save(conv, f"{out_dir}/converter.pt")
 
         with open(losses_path, "w") as txt_file:
-            txt_file.writelines(f"{l}\t{p}\n" for l, p in zip(losses, losses_per_residue))
+            txt_file.writelines(f"{l}\t{p}\t{h}\n" for l, p, h in zip(losses, losses_per_residue, entropies))
         torch.save(conv, f"{out_dir}/converter_epoch_{epoch}.pt")
         torch.save(conv.state_dict(), f"{out_dir}/converter_params_epoch_{epoch}.pt")
 
@@ -111,6 +117,10 @@ def main():
     mp.set_start_method("spawn", force=True)
 
     seqs, loss_fn, cleanup, out_dir = build_task(args)
+    epoch_hook = None
+    if args.fake_fold:
+        from fake_fold import fake_mapping_report
+        epoch_hook = lambda model: fake_mapping_report(model, device)
     losses_path = "losses_fake.txt" if args.fake_fold else "losses.txt"
 
     checkpoint = f"{out_dir}/converter.pt"
@@ -123,7 +133,7 @@ def main():
     try:
         print("Training...")
         train(SeqDataset(seqs), loss_fn, conv, epochs=args.epochs, batch_size=args.batch_size,
-              lr=args.lr, entropy_coef=args.entropy_coef, out_dir=out_dir, losses_path=losses_path)
+              lr=args.lr, entropy_coef=args.entropy_coef, out_dir=out_dir, losses_path=losses_path, epoch_hook=epoch_hook)
     finally:
         cleanup()
 
