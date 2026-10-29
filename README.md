@@ -84,7 +84,7 @@ They were trained before a bug fix in the positional encoding: positions were no
 
 ### About `--pp-dist`
 
-`--pp-dist` only matters for `--loss rmsd` and `--loss tm`. The default (8.81 Å) came from an earlier version of `phosphodiester_length.py` that mixed up residue gaps. Typical consecutive P-P distances in RNA are around 6 Å. Run `python phosphodiester_length.py` and pass the result as `--pp-dist`.
+`--pp-dist` only matters for `--loss rmsd` and `--loss tm`. The default is 5.95 Å, the average distance between neighbouring P atoms measured over 1,297 RNA3DB structures (about 119,000 steps; median 5.89, standard deviation 0.58). It replaces an earlier default of 8.81 Å that came from a bug. To re-measure on your own data, run `python phosphodiester_length.py`.
 
 ## Running a trained converter
 

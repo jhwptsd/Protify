@@ -20,8 +20,10 @@ SEQ_PATH = "rna3db-jsons/cluster.json"
 STRUCT_PATH = "rna3db-mmcifs"
 WORK_DIR = "FoldingWork"
 
-# Average distance used to rescale CA traces to P-P spacing (see phosphodiester_length.py)
-DEFAULT_PP_DIST = 8.81457219731867
+# Distance (angstroms) between neighbouring phosphorus atoms, used to rescale CA traces to P-P spacing.
+# Measured over 1,297 RNA3DB structures (the first 1,646 entries with <=200 nt): 118,928 neighbouring-residue
+# steps, mean 5.946, median 5.891, std 0.577. Re-measure with phosphodiester_length.py.
+DEFAULT_PP_DIST = 5.95
 
 RNA3DB_URL = "https://github.com/marcellszi/rna3db/releases/download/incremental-update"
 
