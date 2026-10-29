@@ -86,6 +86,10 @@ They were trained before a bug fix in the positional encoding: positions were no
 
 `--pp-dist` only matters for `--loss rmsd` and `--loss tm`. The default is 5.95 Å, the average distance between neighbouring P atoms measured over 1,297 RNA3DB structures (about 119,000 steps; median 5.89, standard deviation 0.58). It replaces an earlier default of 8.81 Å that came from a bug. To re-measure on your own data, run `python phosphodiester_length.py`.
 
+## Running on Google Colab
+
+`Protify_Colab.ipynb` runs everything on a Colab runtime, with the options (epochs, batch size, loss, which trainer, and so on) as form fields at the top. It saves checkpoints and loss logs to your Google Drive as it goes. It has not been run on Colab yet, so begin with its smoke-test mode: first with the fake task, then with real AlphaFold (`SMOKE_TEST` on, `USE_REAL_ALPHAFOLD` on) to check the install and time a batch. The trainers' `--max-batches` option, which stops each epoch early, exists for this.
+
 ## Running a trained converter
 
 ```

@@ -26,7 +26,7 @@ def leave_one_out_advantage(rewards):
 
 
 def train(dataset, loss_fn, converter, epochs=10, batch_size=4, lr=1e-3, entropy_coef=0.1,
-          out_dir="ConverterWeights", epoch_hook=None, losses_path="losses.txt"):
+          out_dir="ConverterWeights", epoch_hook=None, max_batches=None, losses_path="losses.txt"):
     os.makedirs(out_dir, exist_ok=True)
     conv = converter
     conv.train()
@@ -38,7 +38,9 @@ def train(dataset, loss_fn, converter, epochs=10, batch_size=4, lr=1e-3, entropy
 
     for epoch in range(epochs):
         epoch_losses = []
-        for rna_seqs, tags in dataloader:
+        for step, (rna_seqs, tags) in enumerate(dataloader):
+            if max_batches is not None and step >= max_batches:
+                break  # lets smoke tests stop after a few batches per epoch
             x, lengths, mask = prepare_batch(rna_seqs, device)
 
             # Sample one protein sequence per RNA
@@ -112,6 +114,8 @@ def main():
     parser.add_argument("--fake-fold", action="store_true",
                         help="replace AlphaFold and RNA3DB with a cheap synthetic task (runs on a laptop CPU; "
                              "writes to ConverterWeights_fake/ and losses_fake.txt)")
+    parser.add_argument("--max-batches", type=int, default=None,
+                        help="stop each epoch after this many batches (for quick smoke tests)")
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
 
@@ -120,6 +124,9 @@ def main():
     mp.set_start_method("spawn", force=True)
 
     seqs, loss_fn, cleanup, out_dir = build_task(args)
+    if len(seqs) < args.batch_size:
+        raise SystemExit(f"Only {len(seqs)} RNAs left after the length filter, fewer than --batch-size "
+                         f"{args.batch_size}; raise --num-rnas or --max-seq-len, or lower --batch-size")
     epoch_hook = None
     if args.fake_fold:
         from fake_fold import fake_mapping_report
@@ -136,7 +143,8 @@ def main():
     try:
         print("Training...")
         train(SeqDataset(seqs), loss_fn, conv, epochs=args.epochs, batch_size=args.batch_size,
-              lr=args.lr, entropy_coef=args.entropy_coef, out_dir=out_dir, losses_path=losses_path, epoch_hook=epoch_hook)
+              lr=args.lr, entropy_coef=args.entropy_coef, out_dir=out_dir, losses_path=losses_path, epoch_hook=epoch_hook,
+              max_batches=args.max_batches)
     finally:
         cleanup()
 
