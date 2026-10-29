@@ -30,7 +30,9 @@ class Converter(nn.Module):
         # x shape: (batch_size, seq_len, 4)
         # src_key_padding_mask shape: (batch_size, seq_len), True at padded positions
         # (see padding_mask_from_lengths)
-        x = self.input_embedding(x)  # Now: (batch_size, seq_len, d_model)
+        # Scale the embedding by sqrt(d_model) (as in the original Transformer) so that nucleotide identity
+        # isn't drowned out by the positional encoding, whose entries are of order 1
+        x = self.input_embedding(x) * math.sqrt(self.d_model)  # Now: (batch_size, seq_len, d_model)
 
         x = self.pos_encoder(x)
 

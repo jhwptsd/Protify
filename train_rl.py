@@ -59,7 +59,10 @@ def train(dataset, loss_fn, converter, epochs=10, batch_size=4, lr=1e-3, entropy
             advantage = leave_one_out_advantage(rewards)
             advantage = advantage / (advantage.std() + 1e-8) if advantage.numel() > 1 else advantage
             log_probs = (dist.log_prob(aa_indices) * token_mask).sum(dim=1)  # padding contributes nothing
-            entropy = (dist.entropy() * token_mask).sum() / token_mask.sum()
+            # Summed over each sequence's tokens, then averaged over the batch: the same scale as the
+            # log-probability term, so --entropy-coef is relative to the policy gradient
+            entropy = (dist.entropy() * token_mask).sum(dim=1).mean()
+            mean_entropy = entropy.item() / token_mask.sum(dim=1).float().mean().item()  # per token, for logging
             policy_loss = -(log_probs * advantage).mean() - entropy_coef * entropy
 
             optimizer.zero_grad(set_to_none=True)
@@ -71,11 +74,11 @@ def train(dataset, loss_fn, converter, epochs=10, batch_size=4, lr=1e-3, entropy
             per_residue = (batch_loss / lengths_f).mean().item()
             losses.append(loss)
             losses_per_residue.append(per_residue)
-            entropies.append(entropy.item())
+            entropies.append(mean_entropy)
             epoch_losses.append(loss)
             print(f"\n\nCurrent Loss: {loss}")
             print(f"Average Loss per Residue: {per_residue}")
-            print(f"Policy entropy: {entropy.item():.3f} (uniform = {math.log(20):.3f})")
+            print(f"Policy entropy: {mean_entropy:.3f} (uniform = {math.log(20):.3f})")
 
         if epoch_hook is not None:
             epoch_hook(conv)
@@ -100,7 +103,7 @@ def main():
     parser.add_argument("--max-seq-len", type=int, default=80, help="skip RNAs longer than this")
     parser.add_argument("--num-rnas", type=int, default=1646, help="use the first N entries of RNA3DB")
     parser.add_argument("--lr", type=float, default=1e-3)
-    parser.add_argument("--entropy-coef", type=float, default=0.01)
+    parser.add_argument("--entropy-coef", type=float, default=0.02)
     parser.add_argument("--pp-dist", type=float, default=DEFAULT_PP_DIST,
                         help="P-P spacing used when scoring by RMSD/TM-score (unused for the default angle loss)")
     parser.add_argument("--loss", choices=["angle", "rmsd", "tm"], default="angle")
