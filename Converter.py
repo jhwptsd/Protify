@@ -91,7 +91,9 @@ def load_converter(path, device="cpu", max_seq_len=None):
     # Checkpoints written before the positional-encoding fix stored the table with shape
     # (max_len, 1, d_model), which silently gave every position the same encoding.
     # Rebuild it in the right shape so old pickles at least run; they should be retrained.
-    model = torch.load(path, map_location=device)
+    # These files are whole pickled models written by this repo's training scripts. PyTorch 2.6+ refuses
+    # to unpickle them by default (weights_only=True), so opt out explicitly; only load files you trust.
+    model = torch.load(path, map_location=device, weights_only=False)
     for module in model.modules():
         if isinstance(module, PositionalEncoding) and module.pe.dim() == 3 and module.pe.size(0) != 1:
             module.pe = PositionalEncoding.build_table(model.d_model, module.pe.size(0)).to(module.pe.device)
